@@ -46,4 +46,6 @@ orca_sim = [
   "models/mjcf/*.mjcf",
   "models/*/*.mjcf",
   "models/*/assets/mjcf/*/*.stl",
+  "models/franka_panda/LICENSE",
+  "models/franka_panda/assets/*",
 ]

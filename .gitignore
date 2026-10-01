@@ -217,3 +217,5 @@ __marimo__/
 
 *.lock
 *.DS_Store
+# MuJoCo runtime log
+MUJOCO_LOG.TXT

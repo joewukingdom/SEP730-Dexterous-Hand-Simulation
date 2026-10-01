@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Franka Panda (no gripper) shared assets, adapted from mujoco_menagerie/franka_emika_panda/
+     panda_nohand.xml (Apache-2.0, see LICENSE). Materials/meshes prefixed with 'panda_' and
+     meshes forced to scale 1 so they can be combined with the ORCA hand models.
+     Body trees and actuators are instantiated per arm in the scene files. -->
+<mujoco model="franka_panda_assets">
+  <default>
+    <default class="panda">
+      <material specular="0.5" shininess="0.25" />
+      <joint armature="0.1" damping="1" axis="0 0 1" range="-2.8973 2.8973" />
+      <general dyntype="none" biastype="affine" ctrlrange="-2.8973 2.8973" forcerange="-87 87" />
+      <default class="panda/visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2" />
+      </default>
+      <default class="panda/collision">
+        <geom type="mesh" group="3" />
+      </default>
+      <site size="0.001" rgba="0.5 0.5 0.5 0.3" group="4" />
+      <mesh scale="1 1 1" />
+    </default>
+  </default>
+  <asset>
+    <material class="panda" name="panda_white" rgba="1 1 1 1" />
+    <material class="panda" name="panda_off_white" rgba="0.901961 0.921569 0.929412 1" />
+    <material class="panda" name="panda_dark_grey" rgba="0.25 0.25 0.25 1" />
+    <material class="panda" name="panda_green" rgba="0 1 0 1" />
+    <material class="panda" name="panda_light_blue" rgba="0.039216 0.541176 0.780392 1" />
+    <mesh name="panda_link0_c" file="assets/link0.stl" class="panda" />
+    <mesh name="panda_link1_c" file="assets/link1.stl" class="panda" />
+    <mesh name="panda_link2_c" file="assets/link2.stl" class="panda" />
+    <mesh name="panda_link3_c" file="assets/link3.stl" class="panda" />
+    <mesh name="panda_link4_c" file="assets/link4.stl" class="panda" />
+    <mesh name="panda_link5_c0" file="assets/link5_collision_0.obj" class="panda" />
+    <mesh name="panda_link5_c1" file="assets/link5_collision_1.obj" class="panda" />
+    <mesh name="panda_link5_c2" file="assets/link5_collision_2.obj" class="panda" />
+    <mesh name="panda_link6_c" file="assets/link6.stl" class="panda" />
+    <mesh name="panda_link7_c" file="assets/link7.stl" class="panda" />
+    <mesh file="assets/link0_0.obj" name="panda_link0_0" class="panda" />
+    <mesh file="assets/link0_1.obj" name="panda_link0_1" class="panda" />
+    <mesh file="assets/link0_2.obj" name="panda_link0_2" class="panda" />
+    <mesh file="assets/link0_3.obj" name="panda_link0_3" class="panda" />
+    <mesh file="assets/link0_4.obj" name="panda_link0_4" class="panda" />
+    <mesh file="assets/link0_5.obj" name="panda_link0_5" class="panda" />
+    <mesh file="assets/link0_7.obj" name="panda_link0_7" class="panda" />
+    <mesh file="assets/link0_8.obj" name="panda_link0_8" class="panda" />
+    <mesh file="assets/link0_9.obj" name="panda_link0_9" class="panda" />
+    <mesh file="assets/link0_10.obj" name="panda_link0_10" class="panda" />
+    <mesh file="assets/link0_11.obj" name="panda_link0_11" class="panda" />
+    <mesh file="assets/link1.obj" name="panda_link1" class="panda" />
+    <mesh file="assets/link2.obj" name="panda_link2" class="panda" />
+    <mesh file="assets/link3_0.obj" name="panda_link3_0" class="panda" />
+    <mesh file="assets/link3_1.obj" name="panda_link3_1" class="panda" />
+    <mesh file="assets/link3_2.obj" name="panda_link3_2" class="panda" />
+    <mesh file="assets/link3_3.obj" name="panda_link3_3" class="panda" />
+    <mesh file="assets/link4_0.obj" name="panda_link4_0" class="panda" />
+    <mesh file="assets/link4_1.obj" name="panda_link4_1" class="panda" />
+    <mesh file="assets/link4_2.obj" name="panda_link4_2" class="panda" />
+    <mesh file="assets/link4_3.obj" name="panda_link4_3" class="panda" />
+    <mesh file="assets/link5_0.obj" name="panda_link5_0" class="panda" />
+    <mesh file="assets/link5_1.obj" name="panda_link5_1" class="panda" />
+    <mesh file="assets/link5_2.obj" name="panda_link5_2" class="panda" />
+    <mesh file="assets/link6_0.obj" name="panda_link6_0" class="panda" />
+    <mesh file="assets/link6_1.obj" name="panda_link6_1" class="panda" />
+    <mesh file="assets/link6_2.obj" name="panda_link6_2" class="panda" />
+    <mesh file="assets/link6_3.obj" name="panda_link6_3" class="panda" />
+    <mesh file="assets/link6_4.obj" name="panda_link6_4" class="panda" />
+    <mesh file="assets/link6_5.obj" name="panda_link6_5" class="panda" />
+    <mesh file="assets/link6_6.obj" name="panda_link6_6" class="panda" />
+    <mesh file="assets/link6_7.obj" name="panda_link6_7" class="panda" />
+    <mesh file="assets/link6_8.obj" name="panda_link6_8" class="panda" />
+    <mesh file="assets/link6_9.obj" name="panda_link6_9" class="panda" />
+    <mesh file="assets/link6_10.obj" name="panda_link6_10" class="panda" />
+    <mesh file="assets/link6_11.obj" name="panda_link6_11" class="panda" />
+    <mesh file="assets/link6_12.obj" name="panda_link6_12" class="panda" />
+    <mesh file="assets/link6_13.obj" name="panda_link6_13" class="panda" />
+    <mesh file="assets/link6_14.obj" name="panda_link6_14" class="panda" />
+    <mesh file="assets/link6_15.obj" name="panda_link6_15" class="panda" />
+    <mesh file="assets/link6_16.obj" name="panda_link6_16" class="panda" />
+    <mesh file="assets/link7_0.obj" name="panda_link7_0" class="panda" />
+    <mesh file="assets/link7_1.obj" name="panda_link7_1" class="panda" />
+    <mesh file="assets/link7_2.obj" name="panda_link7_2" class="panda" />
+    <mesh file="assets/link7_3.obj" name="panda_link7_3" class="panda" />
+    <mesh file="assets/link7_4.obj" name="panda_link7_4" class="panda" />
+    <mesh file="assets/link7_5.obj" name="panda_link7_5" class="panda" />
+    <mesh file="assets/link7_6.obj" name="panda_link7_6" class="panda" />
+    <mesh file="assets/link7_7.obj" name="panda_link7_7" class="panda" />
+  </asset>
+</mujoco>
