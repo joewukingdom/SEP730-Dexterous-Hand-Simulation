@@ -3,8 +3,9 @@ ORCA hand interactive control with pose recording and replay.
 
 Two windows open:
   * MuJoCo viewer   — right panel → Ctrl tab: drag sliders to move joints
-  * Control panel   — pick a scene (e.g. v2 right hand on a Franka Panda) and
-                      record / replay poses with buttons
+  * Control panel   — pick a scene (e.g. v2 right hand on a Franka Panda),
+                      switch to any of the scene's fixed cameras (shows its
+                      position and field of view), and record / replay poses
 
 Keyboard shortcuts (click the viewer window first):
   R  — record current joint positions as a keyframe
@@ -107,9 +108,20 @@ class SliderControl:
                        command=lambda k=key: self.handle_key(k)
                        ).grid(row=3, column=col, padx=2)
 
+        ttk.Label(frame, text="Camera").grid(row=4, column=0, sticky="w", pady=(10, 0))
+        self.camera_var = tk.StringVar(value="Free")
+        self.camera_combo = ttk.Combobox(frame, textvariable=self.camera_var,
+                                          state="readonly", width=34)
+        self.camera_combo.grid(row=5, column=0, columnspan=5, sticky="ew")
+        self.camera_combo.bind("<<ComboboxSelected>>",
+                                lambda _e: self.set_camera(self.camera_var.get()))
+        self.camera_info_var = tk.StringVar()
+        ttk.Label(frame, textvariable=self.camera_info_var, foreground="#555"
+                  ).grid(row=6, column=0, columnspan=6, sticky="w")
+
         self.status_var = tk.StringVar()
         ttk.Label(frame, textvariable=self.status_var, foreground="#555"
-                  ).grid(row=4, column=0, columnspan=6, sticky="w", pady=(10, 0))
+                  ).grid(row=7, column=0, columnspan=6, sticky="w", pady=(10, 0))
 
     def set_status(self, msg: str) -> None:
         print(msg)
@@ -143,8 +155,31 @@ class SliderControl:
         self.viewer = mujoco.viewer.launch_passive(
             model, data, key_callback=self._on_viewer_key
         )
-        mujoco.mjv_defaultFreeCamera(model, self.viewer.cam)
-        self.set_status(f"Loaded {scene} ({model.nu} actuators)")
+
+        camera_names = ["Free"] + [model.camera(i).name for i in range(model.ncam)]
+        self.camera_combo["values"] = camera_names
+        self.camera_var.set("Free")
+        self.set_camera("Free")
+
+        self.set_status(f"Loaded {scene} ({model.nu} actuators, {model.ncam} camera(s))")
+
+    def set_camera(self, name: str) -> None:
+        """Point the viewer's camera at a named fixed camera from the scene,
+        or back to the default orbiting free camera."""
+        if self.model is None or self.viewer is None:
+            return
+        if name == "Free":
+            mujoco.mjv_defaultFreeCamera(self.model, self.viewer.cam)
+            self.camera_info_var.set("")
+            return
+        cam_id = self.model.camera(name).id
+        self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
+        self.viewer.cam.fixedcamid = cam_id
+        pos = self.model.cam_pos[cam_id]
+        fovy = self.model.cam_fovy[cam_id]
+        self.camera_info_var.set(
+            f"pos=({pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})  fovy={fovy:.1f}°"
+        )
 
     def _reset_clock(self) -> None:
         self.wall_start = time.perf_counter()
@@ -243,7 +278,7 @@ class SliderControl:
 
     def run(self) -> None:
         print("Viewer: right panel → Ctrl tab : drag sliders to move joints")
-        print("Control panel: pick a scene, R/P/C/S/L buttons (or keys in the viewer)")
+        print("Control panel: pick a scene, switch camera, R/P/C/S/L buttons (or keys in the viewer)")
         self.load_scene(self.scene_var.get())
         self.tick()
         self.root.mainloop()

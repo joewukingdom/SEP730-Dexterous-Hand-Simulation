@@ -5,7 +5,7 @@ from orca_sim import OrcaHandCombined, OrcaHandLeft, OrcaHandRight
 
 
 @pytest.mark.parametrize(
-    ("env_cls", "obs_size", "action_size", "version"),
+    ("env_cls", "obs_size", "action_size", "version"),    C:\Users\joewu\AppData\Local\Programs\Python\Python310\python.exe -m pytest    C:\Users\joewu\AppData\Local\Programs\Python\Python310\python.exe -m pytest    C:\Users\joewu\AppData\Local\Programs\Python\Python310\python.exe -m pytest
     [
         (OrcaHandLeft, 34, 17, "v1"),
         (OrcaHandLeft, 34, 17, "v2"),
