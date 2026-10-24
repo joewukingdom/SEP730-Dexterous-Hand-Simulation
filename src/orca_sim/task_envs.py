@@ -33,6 +33,14 @@ class OrcaHandRightCubeOrientation(BaseOrcaHandEnv):
         cube_pos_xy_jitter: float | tuple[float, float] = 0.0,
         max_episode_steps: int = 200,
         success_tolerance_rad: float = np.deg2rad(15.0),
+        success_hold_steps: int = 25,
+        success_max_angvel: float = 1.0,
+        success_max_linvel: float = 0.1,
+        success_bonus: float = 10.0,
+        stability_reward_weight: float = 1.0,
+        stability_angvel_scale: float = 3.0,
+        stability_linvel_scale: float = 0.3,
+        action_rate_penalty: float = 0.5,
         drop_height: float = 0.05,
     ) -> None:
         self.scene_file = scene_file
@@ -45,8 +53,34 @@ class OrcaHandRightCubeOrientation(BaseOrcaHandEnv):
         self.cube_pos_xy_jitter = self._normalize_xy_jitter(cube_pos_xy_jitter)
         self.max_episode_steps = max_episode_steps
         self.success_tolerance_rad = float(success_tolerance_rad)
+        # Success must be *held*: the red face stays within tolerance while the
+        # cube is nearly still and in the hand for this many consecutive steps
+        # (25 steps x 0.01 s = 0.25 s). A random policy that merely spins the
+        # cube through the goal orientation no longer counts as a success.
+        # success_hold_steps=1, success_max_angvel=inf, success_max_linvel=inf,
+        # success_bonus=0, stability_reward_weight=0, action_rate_penalty=0
+        # reproduces the original instantaneous success and reward.
+        self.success_hold_steps = max(1, int(success_hold_steps))
+        self.success_max_angvel = float(success_max_angvel)
+        self.success_max_linvel = float(success_max_linvel)
+        self.success_bonus = float(success_bonus)
+        # Dense reward for being at the goal *and* still. Without it the sparse
+        # held-success bonus is never discovered and policies learn to keep the
+        # red face up while spinning the cube about the vertical axis.
+        # Set to 0 to recover the original reward.
+        self.stability_reward_weight = float(stability_reward_weight)
+        # Decay scales of the stability reward. Wider than the success thresholds
+        # so a cube spinning at a few rad/s still feels a gradient toward stopping.
+        self.stability_angvel_scale = float(stability_angvel_scale)
+        self.stability_linvel_scale = float(stability_linvel_scale)
+        # Penalises jumps in the commanded joint targets between steps (in units
+        # of each actuator's range); jittery fingers keep the cube spinning.
+        self.action_rate_penalty = float(action_rate_penalty)
+        self._prev_action: np.ndarray | None = None
+        self._last_action_rate = 0.0
         self.drop_height = float(drop_height)
         self._elapsed_steps = 0
+        self._success_streak = 0
 
         super().__init__(
             scene_file,
@@ -212,7 +246,26 @@ class OrcaHandRightCubeOrientation(BaseOrcaHandEnv):
         return float(np.arccos(alignment))
 
     def _goal_reached(self) -> bool:
+        """Instantaneous check: red face within tolerance of world up."""
         return bool(self._red_face_up_alignment() >= np.cos(self.success_tolerance_rad))
+
+    def _goal_stable(self) -> bool:
+        """Goal orientation reached with the cube nearly still and not dropped."""
+        qvel = self._cube_qvel()
+        return bool(
+            self._goal_reached()
+            and not self._cube_dropped()
+            and np.linalg.norm(qvel[3:]) <= self.success_max_angvel
+            and np.linalg.norm(qvel[:3]) <= self.success_max_linvel
+        )
+
+    def _is_success(self) -> bool:
+        return self._success_streak >= self.success_hold_steps
+
+    @property
+    def _max_step_reward(self) -> float:
+        """Upper bound of the per-step shaped reward."""
+        return 1.0 + 0.10 + self.stability_reward_weight
 
     def _cube_dropped(self) -> bool:
         return bool(self.data.xpos[self._cube_body_id, 2] < self.drop_height)
@@ -229,14 +282,32 @@ class OrcaHandRightCubeOrientation(BaseOrcaHandEnv):
             ]
         )
 
+    def _stability_reward(self) -> float:
+        """In [0, 1]: 0 away from the goal, 1 at the goal with the cube at rest."""
+        if not self._goal_reached():
+            return 0.0
+        qvel = self._cube_qvel()
+        angvel = float(np.linalg.norm(qvel[3:]))
+        linvel = float(np.linalg.norm(qvel[:3]))
+        return float(
+            np.exp(-angvel / max(self.stability_angvel_scale, 1e-6))
+            * np.exp(-linvel / max(self.stability_linvel_scale, 1e-6))
+        )
+
     def _get_reward(self) -> float:
         alignment_reward = 0.5 * (self._red_face_up_alignment() + 1.0)
         lift_bonus = np.clip(self.data.xpos[self._cube_body_id, 2] - 0.12, 0.0, 0.12) / 0.12
         drop_penalty = 1.0 if self._cube_dropped() else 0.0
-        return float(alignment_reward + 0.10 * lift_bonus - drop_penalty)
+        return float(
+            alignment_reward
+            + 0.10 * lift_bonus
+            + self.stability_reward_weight * self._stability_reward()
+            - self.action_rate_penalty * self._last_action_rate
+            - drop_penalty
+        )
 
     def _get_terminated(self) -> bool:
-        return self._goal_reached() or self._cube_dropped()
+        return self._is_success() or self._cube_dropped()
 
     def _get_truncated(self) -> bool:
         return self._elapsed_steps >= self.max_episode_steps
@@ -249,7 +320,9 @@ class OrcaHandRightCubeOrientation(BaseOrcaHandEnv):
             "red_face_world_normal": self._cube_red_face_world_normal(),
             "red_face_up_alignment": self._red_face_up_alignment(),
             "red_face_up_angle_rad": self._red_face_up_angle_rad(),
-            "is_success": self._goal_reached(),
+            "is_success": self._is_success(),
+            "goal_reached": self._goal_reached(),
+            "success_streak": self._success_streak,
             "dropped": self._cube_dropped(),
             "elapsed_steps": self._elapsed_steps,
         }
@@ -263,6 +336,9 @@ class OrcaHandRightCubeOrientation(BaseOrcaHandEnv):
         gym.Env.reset(self, seed=seed)
         mujoco.mj_resetData(self.model, self.data)
         self._elapsed_steps = 0
+        self._success_streak = 0
+        self._prev_action = None
+        self._last_action_rate = 0.0
 
         options = {} if options is None else dict(options)
         full_qpos = options.get("qpos")
@@ -343,12 +419,26 @@ class OrcaHandRightCubeOrientation(BaseOrcaHandEnv):
                 f"Expected action shape {self.action_space.shape}, got {action.shape}"
             )
 
-        self.data.ctrl[:] = np.clip(action, self.action_low, self.action_high)
+        ctrl = np.clip(action, self.action_low, self.action_high)
+        if self._prev_action is None:
+            self._prev_action = self.data.ctrl.copy()
+        span = np.maximum(self.action_high - self.action_low, 1e-6)
+        self._last_action_rate = float(np.mean(((ctrl - self._prev_action) / span) ** 2))
+        self._prev_action = ctrl.astype(np.float64)
+        self.data.ctrl[:] = ctrl
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
         self._elapsed_steps += 1
+        self._success_streak = self._success_streak + 1 if self._goal_stable() else 0
 
         obs = self._get_obs()
         reward = self._get_reward()
+        if self._is_success():
+            # Ending the episode early must not cost the agent the reward it
+            # would have kept collecting by staying at the goal, otherwise the
+            # optimal policy is to hover just outside the tolerance. Credit the
+            # remaining steps at the maximum per-step reward, plus a bonus.
+            remaining = max(0, self.max_episode_steps - self._elapsed_steps)
+            reward += remaining * self._max_step_reward + self.success_bonus
         terminated = self._get_terminated()
         truncated = self._get_truncated()
         info = self._get_info()

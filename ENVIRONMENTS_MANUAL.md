@@ -131,9 +131,12 @@ obs, info = env.reset()
 
 - **Action space:** `Box(17,)` — right hand only
 - **Observation:** `qpos` + `qvel` + `red_face_world_normal (3,)` + `red_face_up_alignment (1,)` 
-- **Reward:** alignment reward (0–1) + small lift bonus − drop penalty
-- **Terminated when:** red face is ≤15° from pointing up, OR cube is dropped below 5 cm
+- **Reward (per step):** alignment (0–1) + lift bonus (0–0.1) + stability bonus (0–1, only while the red face is within 15° of up; larger the slower the cube moves) − 0.5 × action-rate penalty − 1 if dropped. On success the remaining steps are credited at the maximum per-step reward, plus a bonus of 10, so finishing early never pays less than hovering near the goal.
+- **Success (`info["is_success"]`):** the red face is within 15° of up **and** the cube is nearly still (angular velocity ≤ 1 rad/s, linear velocity ≤ 0.1 m/s) and not dropped, for **25 consecutive steps (0.25 s)**. A cube that only spins *through* the goal orientation does not count.
+- **Terminated when:** success, OR cube is dropped below 5 cm
 - **Truncated when:** episode exceeds `max_episode_steps` (default 200)
+
+> **Changed in Oct 2026.** Success used to be "red face within 15° of up for a single step". Under that rule a random policy scored 15–38%, so numbers measured before this change are not comparable with numbers measured after it. With the new rule a random policy scores 0%. To reproduce the old behaviour exactly, pass `success_hold_steps=1, success_max_angvel=np.inf, success_max_linvel=np.inf, success_bonus=0, stability_reward_weight=0, action_rate_penalty=0`.
 
 #### Extra constructor parameters
 
@@ -142,7 +145,14 @@ obs, info = env.reset()
 | `initial_red_face` | `"down"` | Starting orientation: `"down"` or `"random"` |
 | `cube_pos_xy_jitter` | `0.0` | Random XY offset for cube spawn (meters) |
 | `max_episode_steps` | `200` | Steps before truncation |
-| `success_tolerance_rad` | `0.2618` (15°) | How close to "up" counts as success |
+| `success_tolerance_rad` | `0.2618` (15°) | How close to "up" counts as being at the goal |
+| `success_hold_steps` | `25` | Consecutive at-goal-and-still steps required for success (1 step = 0.01 s) |
+| `success_max_angvel` | `1.0` | Max cube angular speed (rad/s) to count as still |
+| `success_max_linvel` | `0.1` | Max cube linear speed (m/s) to count as still |
+| `success_bonus` | `10.0` | Extra reward on success, on top of crediting the remaining steps |
+| `stability_reward_weight` | `1.0` | Weight of the dense at-goal stability reward (0 disables it) |
+| `stability_angvel_scale` / `stability_linvel_scale` | `3.0` / `0.3` | Decay scales of the stability reward |
+| `action_rate_penalty` | `0.5` | Penalty on the change of commanded joint targets between steps |
 | `drop_height` | `0.05` | Z threshold below which cube is considered dropped |
 | `hand_pose_by_joint` | `None` | Dict of `{joint_name: radians}` for custom initial hand pose |
 
@@ -156,7 +166,9 @@ obs, info = env.reset()
 | `red_face_world_normal` | `(3,)` | World-frame direction the red face points |
 | `red_face_up_alignment` | `float` | Dot product with world-up (1.0 = solved) |
 | `red_face_up_angle_rad` | `float` | Angle from solved (0.0 = solved) |
-| `is_success` | `bool` | True when goal is reached |
+| `is_success` | `bool` | True once the goal has been **held** still for `success_hold_steps` steps |
+| `goal_reached` | `bool` | Instantaneous: red face within tolerance this step (the old `is_success`) |
+| `success_streak` | `int` | Consecutive at-goal-and-still steps so far |
 | `dropped` | `bool` | True when cube fell below drop height |
 | `elapsed_steps` | `int` | Steps taken in current episode |
 
@@ -183,6 +195,23 @@ obs, info = env.reset(options={
     "settle_steps": 20,
 })
 ```
+
+#### Training a policy (PPO)
+
+Train with **relative joint control** (`orca_sim.wrappers.RelativeJointTargetAction`): the policy outputs `[-1, 1]` deltas that move each joint target by at most 5% of its range per step, and the current targets are appended to the observation. With raw absolute joint targets PPO learned to slam joints between their limits and never held the cube still (0% success over 17.5M steps); with relative control it reaches the results below.
+
+```bash
+python scripts/train_ppo_reorient.py                 # 10M steps, 16 parallel envs, CPU (~1.5 h)
+python scripts/plot_training.py runs/<run_dir>       # live training curves
+python scripts/watch_policy.py runs/<run_dir>        # watch the newest checkpoint in the MuJoCo viewer
+```
+
+Reference result (PPO, 10M steps, random start orientation, 200 evaluation episodes each):
+
+| Start orientation | Success | Dropped | Median time to success |
+|---|---|---|---|
+| random (non-solved) | 80% | 0% | 0.71 s |
+| red face down | 100% | 0% | 0.89 s |
 
 ---
 

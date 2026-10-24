@@ -219,3 +219,6 @@ __marimo__/
 *.DS_Store
 # MuJoCo runtime log
 MUJOCO_LOG.TXT
+
+# RL training outputs
+runs/
