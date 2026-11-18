@@ -1,0 +1,5 @@
+{
+  "init": "random",
+  "action": "relative",
+  "max_delta_frac": 0.05
+}
