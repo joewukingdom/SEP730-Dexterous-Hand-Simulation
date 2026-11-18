@@ -113,3 +113,48 @@ The implementation is intentionally split so it doubles as a porting template:
 - The nominal palm-up hand pose and in-palm cube spawn are now authored into the task-specific scene/model files, so opening the XML directly in MuJoCo shows the intended setup.
 - The task logic lives in [`src/orca_sim/task_envs.py`](src/orca_sim/task_envs.py), including reset-time cube randomization and optional hand-pose overrides for custom MJCF layouts.
 
+An episode counts as a success only when the red face points up within 15° and the cube is held still (|ω| ≤ 1 rad/s, |v| ≤ 0.1 m/s) for 25 consecutive steps. Dropping the cube ends the episode as a failure. See [`ENVIRONMENTS_MANUAL.md`](ENVIRONMENTS_MANUAL.md) for the full reward and success definition.
+
+## Training a PPO policy on the cube task
+
+The training scripts use [Stable-Baselines3](https://stable-baselines3.readthedocs.io/), which is not a dependency of the package:
+
+```bash
+uv pip install stable-baselines3 matplotlib
+```
+
+### Watch the pretrained policy
+
+A trained policy is included in [`models/ppo_reorient_relative/`](models/ppo_reorient_relative/). It reaches 80% success from random start orientations (200 episodes), 100% from red-face-down, with no drops. To watch it in the MuJoCo viewer and plot its training curves:
+
+```bash
+python scripts/watch_policy.py models/ppo_reorient_relative --checkpoint final
+python scripts/plot_training.py models/ppo_reorient_relative --once --save curves.png
+```
+
+Each episode's outcome is printed in the terminal. Close the viewer window to stop.
+
+### Train your own
+
+```bash
+python scripts/train_ppo_reorient.py
+```
+
+The defaults are 10M steps, 16 parallel environments, random start orientations and relative joint control (each action moves the joint targets by at most 5% of their range). The included model took about 1 h 45 min (~1,600 steps/s) on a desktop PC. Useful options:
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--steps` | `10000000` | total environment steps |
+| `--n-envs` | `16` | parallel simulation processes |
+| `--init` | `random` | start orientation: `random` or `down` (red face down) |
+| `--action` | `relative` | `relative` joint targets, or `absolute` (tends to chatter between joint limits) |
+| `--resume` | | continue from a checkpoint `.zip` |
+| `--out` | `runs/ppo_reorient_<init>_<timestamp>` | output folder |
+
+The output folder holds `final_model.zip`, `best_model.zip`, `vecnormalize.pkl` (observation normalisation stats, needed to run the policy), `progress.csv` and checkpoints every 500k steps. While training runs, you can follow it from a second terminal:
+
+```bash
+python scripts/plot_training.py runs/<run_folder>   # curves, refreshed every 30 s
+python scripts/watch_policy.py runs/<run_folder>    # reloads the newest checkpoint each episode
+```
+
