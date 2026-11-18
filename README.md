@@ -33,6 +33,28 @@ cd orca_sim && uv pip install -e .
 > [!WARNING] 
 We are still iterating (a lot!) on this package. If you need stability, consider sticking to the Pypi package (`pip install orca_sim`).
 
+## Demos
+
+Each demo opens a MuJoCo viewer window; close it to stop. Run them from the repository root. The PPO demo also needs `uv pip install stable-baselines3` (plus `matplotlib` for the curves).
+
+| Demo | What you see | Command |
+|---|---|---|
+| Hands, random actions | Any hand variant moving under random actions | `python random_policy.py --env combined --version v2` |
+| Slider control panel | Pick any scene (single hand, two hands, hands on Franka Panda arms, tabletop), drag joint sliders, switch cameras, record and replay poses | `python slider_control.py` |
+| Arm pick-and-place | v2 hand on a Franka Panda picks up the red block and puts it in the bowl, on a new random layout every episode (scripted IK, not learned) | `python scripts/demo_pick_place.py` |
+| Pick-and-place success rate | Same policy without a viewer; prints the success tally (about 85-90%) | `python scripts/validate_pick_place.py --episodes 20` |
+| PPO cube flip | The trained PPO policy turns the cube red face up and holds it (80% from random starts) | `python scripts/watch_policy.py models/ppo_reorient_relative --checkpoint final` |
+| PPO training curves | Return, episode length and success rate over the 10M training steps | `python scripts/plot_training.py models/ppo_reorient_relative --once` |
+
+Useful options:
+
+- `random_policy.py --env`: `right`, `left`, `combined`, `right_extended`, `left_extended`, `combined_extended`, `right_cube_orientation`.
+- `demo_pick_place.py --seed 7 --episodes 5`: a fixed set of layouts and a set number of episodes.
+- `watch_policy.py --init down`: always start with the red face down.
+- In `slider_control.py`, click the viewer and press `R` to record a pose, `P` to replay, `S`/`L` to save/load `poses.json`.
+
+The scenes themselves are in [`src/orca_sim/scenes/v2/`](src/orca_sim/scenes/v2/): `scene_right_arm.xml` (one arm), `scene_combined_arm.xml` (two arms) and `scene_right_arm_tabletop.xml` (the pick-and-place table). [`ENVIRONMENTS_MANUAL.md`](ENVIRONMENTS_MANUAL.md) documents every environment.
+
 ## Getting started
 
 `orca_sim` follows the [Gymnasium](https://gymnasium.farama.org/) API, and uses [Mujoco](https://mujoco.readthedocs.io/en/stable/overview.html) for physics simulation and rendering.
