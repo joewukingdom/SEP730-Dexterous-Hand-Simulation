@@ -17,7 +17,9 @@ the hand):
   * slowed down: time stretched by --slow, and more where needed so that no joint moves
     faster than --max-speed deg/s,
   * every angle clamped into the config's joint_roms,
-  * --ramp seconds from the neutral pose into the first pose and back to neutral at the end.
+  * --ramp seconds from the neutral pose into the first pose; at the end the thumb is
+    released first and then the other fingers (--release seconds each, eased), because
+    sending every finger back at once flicked the cube off the hand in run01.
 """
 
 from __future__ import annotations
@@ -98,9 +100,13 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--seconds", type=float, default=2.0, help="sim time of policy motion")
     ap.add_argument("--slow", type=float, default=4.0, help="minimum time stretch")
-    ap.add_argument("--max-speed", type=float, default=60.0, help="max joint speed on the real hand, deg/s")
+    ap.add_argument("--max-speed", type=float, default=40.0, help="max joint speed on the real hand, deg/s")
     ap.add_argument("--hz", type=float, default=30.0, help="replay rate (<= 50 for the servo bus)")
-    ap.add_argument("--ramp", type=float, default=2.0, help="seconds from/to neutral")
+    ap.add_argument("--ramp", type=float, default=2.0, help="seconds from neutral into the first pose")
+    ap.add_argument("--release", type=float, default=4.0,
+                    help="seconds for each of the two release stages at the end: first the thumb goes back "
+                         "to neutral (lets go of the cube), then the other fingers. run01 sent every finger "
+                         "back in 2 s at once and the cube was flicked off the hand")
     ap.add_argument("--out", default="policy_run.yaml", help="file name in the orca replay_sequences folder")
     args = ap.parse_args()
 
@@ -163,8 +169,17 @@ def main() -> int:
     n_ramp = max(1, int(args.ramp * args.hz))
     blend = np.linspace(0, 1, n_ramp)[:, None]
     hold = np.repeat(traj[:1], int(args.hz), axis=0)  # 1 s still at the start pose
+    # end: hold 1 s, release the thumb (stage 1), then the other fingers (stage 2)
+    n_rel = max(1, int(args.release * args.hz))
+    s = np.linspace(0, 1, n_rel)[:, None]
+    s = 0.5 - 0.5 * np.cos(np.pi * s)  # ease in / out
+    thumb = np.array([j.startswith("thumb") for j in ids])
+    mid = traj[-1].copy()
+    mid[thumb] = neutral[thumb]
+    stage1 = traj[-1] + s * (mid - traj[-1])
+    stage2 = mid + s * (neutral - mid)
     full = np.vstack([neutral + blend * (traj[0] - neutral), hold, traj,
-                      np.repeat(traj[-1:], int(args.hz), axis=0), traj[-1] + blend * (neutral - traj[-1])])
+                      np.repeat(traj[-1:], int(args.hz), axis=0), stage1, stage2])
     roms = cfg["joint_roms"]
     clipped = 0
     for i, j in enumerate(ids):
@@ -191,7 +206,8 @@ def main() -> int:
 
     print(f"time stretch x{stretch:.1f} ({'--slow' if stretch == args.slow else 'speed limit'}); "
           f"replay {len(full) / args.hz:.1f} s at {args.hz:g} Hz "
-          f"(ramp {args.ramp:g} s + hold 1 s + motion {len(traj) / args.hz:.1f} s + hold 1 s + ramp {args.ramp:g} s)")
+          f"(ramp {args.ramp:g} s + hold 1 s + motion {len(traj) / args.hz:.1f} s + hold 1 s + "
+          f"thumb release {args.release:g} s + finger release {args.release:g} s)")
     print(f"fastest joint in the file: {ids[worst]} {peak[worst]:.0f} deg/s (limit {args.max_speed:g}); "
           f"wrist fixed at {neutral[w]:g} deg; {clipped} samples clamped into joint_roms")
     print(f"wrote {out}\n\nreplay on the hand (orca folder, Ctrl+C to stop):\n"
