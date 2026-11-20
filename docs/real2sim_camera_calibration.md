@@ -271,7 +271,15 @@ T_world_cam = T_world_board · T_board_cam
 
 ---
 
-## 8. 复现步骤（命令）
+## 8. 超声波：初步观察（2026-11-20）
+
+- HC-SR04 由 ESP32-S3 驱动（`ORCA Ultra Sonic/src/main.cpp`，TRIG 10 / ECHO 18，每 100 ms 测一次，输出 `Distance: xx.x cm`），接在 COM4（FTDI）；手的舵机适配器在 COM3。
+- `hardware/ultrasonic/read_ultrasonic.py` 改为监听哪个端口在输出距离来找端口，不向任何端口写数据。
+- 10 秒实测：9.8 Hz，100 个读数全部是 26.0 mm，标准差 0。
+- 原因：传感器平放在前臂塔上，两个探头朝向手掌根部，前方 2–3 cm 就是手掌（接近 HC-SR04 约 2 cm 的最小量程）。按现在的安装方式，它看不到手掌上的方块。
+- 下一步：先确定传感器要测什么、装在哪里，再在 sim 里同一位置加测距传感器做对比。
+
+## 9. 复现步骤（命令）
 
 ```bash
 # 0. 打印标定板（Letter，100%），贴到硬板上，量 100 mm 检查条和格子总长

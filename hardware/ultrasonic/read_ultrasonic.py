@@ -9,7 +9,12 @@ the background distance (table edge, wall, or "no echo"). Afterwards a reading
 that is clearly shorter than the background, and stable for a few readings, is
 reported as "cube at <d> mm".
 
-Firmware: hardware/ultrasonic/hcsr04_esp32/hcsr04_esp32.ino (prints "dist_mm,<v>").
+Firmware (either works):
+  ORCA Ultra Sonic/src/main.cpp        (ESP32-S3, prints "Distance: 12.3 cm" / "Out of range / no echo")
+  hardware/ultrasonic/hcsr04_esp32/    (prints "dist_mm,<v>")
+
+On Joe's bench the sensor is on COM4 (FTDI) and the hand's servo adapter is on COM3. The port
+is found by LISTENING for distance lines; nothing is ever written to any port.
 """
 
 from __future__ import annotations
@@ -24,34 +29,50 @@ import serial
 from serial.tools import list_ports
 
 
-def pick_port() -> str:
-    ports = list(list_ports.comports())
-    if not ports:
-        raise SystemExit("No serial port found -- is the ESP32 plugged in (and its USB driver installed)?")
-    # Only auto-pick the usual ESP32 USB-serial chips (Silicon Labs CP210x, WCH CH34x,
-    # Espressif native USB). Never fall back to e.g. the FTDI servo bus adapter.
-    esp_vids = {0x10C4, 0x1A86, 0x303A}
-    for p in ports:
-        if p.vid in esp_vids:
-            return p.device
-    names = ", ".join(f"{p.device} ({p.description})" for p in ports)
-    raise SystemExit(f"No ESP32-like serial port found (have: {names}). "
-                     "Pass the port explicitly if you are sure, e.g. COM5.")
-
-
-def readings(ser: serial.Serial):
-    """Yield distances in mm (None = no echo) from the firmware's 'dist_mm,<v>' lines."""
-    while True:
-        line = ser.readline().decode(errors="ignore").strip()
-        if not line or line.startswith("#"):
-            continue
-        if not line.startswith("dist_mm,"):
-            continue
+def parse(line: str) -> tuple[bool, float | None]:
+    """(is_reading, distance_mm or None for no echo)."""
+    line = line.strip()
+    if line.startswith("dist_mm,"):
         try:
             v = float(line.split(",", 1)[1])
         except ValueError:
-            continue
-        yield None if v < 0 else v
+            return False, None
+        return True, (None if v < 0 else v)
+    if line.startswith("Distance:"):
+        try:
+            return True, float(line.split(":", 1)[1].split()[0]) * 10.0
+        except (ValueError, IndexError):
+            return False, None
+    if line.lower().startswith("out of range"):
+        return True, None
+    return False, None
+
+
+def pick_port(baud: int, listen_s: float = 2.5) -> str:
+    """The first port that prints distance lines (read-only probe)."""
+    ports = list(list_ports.comports())
+    if not ports:
+        raise SystemExit("No serial port found -- is the ESP32 plugged in (and its USB driver installed)?")
+    for p in ports:
+        try:
+            with serial.Serial(p.device, baud, timeout=0.3) as ser:
+                t0 = time.time()
+                while time.time() - t0 < listen_s:
+                    if parse(ser.readline().decode(errors="ignore"))[0]:
+                        return p.device
+        except serial.SerialException:
+            continue  # busy (e.g. a serial monitor) or not openable
+    names = ", ".join(f"{p.device} ({p.description})" for p in ports)
+    raise SystemExit(f"No port printing distance lines (have: {names}). Is a serial monitor still open? "
+                     "Or pass the port explicitly, e.g. COM4.")
+
+
+def readings(ser: serial.Serial):
+    """Yield distances in mm (None = no echo)."""
+    while True:
+        ok, v = parse(ser.readline().decode(errors="ignore"))
+        if ok:
+            yield v
 
 
 def main() -> None:
@@ -67,7 +88,7 @@ def main() -> None:
     ap.add_argument("--stable", type=int, default=3, help="consecutive readings needed to report a cube")
     args = ap.parse_args()
 
-    port = args.port or pick_port()
+    port = args.port or pick_port(args.baud)
     print(f"opening {port} @ {args.baud}")
     with serial.Serial(port, args.baud, timeout=1.0) as ser:
         time.sleep(1.5)  # opening the port resets most ESP32 boards

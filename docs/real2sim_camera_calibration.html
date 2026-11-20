@@ -1,0 +1,398 @@
+<title>ORCA 双相机 Real2Sim</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab-notebook column (max ~860px) with full-width figures; key numbers up front; sections follow the real order of the work */
+:root {
+  --bg: #f5f7f8; --paper: #ffffff; --ink: #18212b; --muted: #5b6875; --line: #d9e0e5;
+  --accent: #0e7c86; --accent-soft: #e2f2f3; --warn: #a15c00; --warn-soft: #fbf0df; --bad: #b3261e; --code: #eef2f4;
+  --sans: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  --display: "Space Grotesk", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1418; --paper: #161d23; --ink: #e3e9ee; --muted: #93a1ad; --line: #2a343d;
+  --accent: #4fc3cc; --accent-soft: #15343a; --warn: #e3a34a; --warn-soft: #3a2a12; --bad: #f2867d; --code: #1d262e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1418; --paper: #161d23; --ink: #e3e9ee; --muted: #93a1ad; --line: #2a343d;
+  --accent: #4fc3cc; --accent-soft: #15343a; --warn: #e3a34a; --warn-soft: #3a2a12; --bad: #f2867d; --code: #1d262e; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15.5px/1.75 var(--sans); }
+.wrap { max-width: 900px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.25; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(26px, 4.5vw, 36px); }
+h2 { font-size: 22px; display: flex; gap: 12px; align-items: baseline; }
+h2 .no { font: 600 14px var(--mono); color: var(--accent); }
+h3 { font-size: 16.5px; margin-top: 6px; }
+p, li { max-width: 72ch; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
+section { display: grid; gap: 16px; min-width: 0; }
+.eyebrow { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); font-size: 16.5px; }
+code { font-family: var(--mono); font-size: .86em; background: var(--code); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 13px/1.6 var(--mono); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; }
+.tile { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 2px; }
+.tile .v { font: 600 22px var(--display); font-variant-numeric: tabular-nums; }
+.tile .k { font-size: 13px; color: var(--muted); }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 500; color: var(--muted); background: var(--code); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+figure { margin: 0; display: grid; gap: 8px; }
+figure img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); cursor: zoom-in; background: var(--code); }
+figcaption { font-size: 13.5px; color: var(--muted); max-width: 80ch; }
+figcaption b { color: var(--ink); font-family: var(--mono); font-weight: 500; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; display: grid; gap: 6px; }
+.note.warn { border-color: var(--warn); background: var(--warn-soft); }
+.tag { display: inline-block; font: 500 11.5px var(--mono); padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.tag.ok { color: var(--accent); } .tag.no { color: var(--bad); } .tag.mid { color: var(--warn); }
+nav.toc { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
+nav.toc ol { columns: 2 240px; display: block; }
+nav.toc a { color: var(--ink); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); text-decoration: underline; }
+a:focus-visible, img:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formula { font: 13.5px/1.7 var(--mono); background: var(--code); border-radius: 8px; padding: 10px 14px; overflow-x: auto; white-space: pre; }
+#lb { position: fixed; inset: 0; background: rgba(5, 10, 14, .9); display: grid; place-items: center; z-index: 20;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); cursor: zoom-out; }
+#lb img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: no-preference) { figure img { transition: opacity .15s; } figure img:hover { opacity: .92; } }
+</style>
+
+<div class="wrap">
+
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">SEP 730 · ORCA dexterous hand · real2sim · 2026-11-18 → 11-20</div>
+  <h1>双相机 Real2Sim 标定记录</h1>
+  <p class="lede">把实验台上的两个 Logitech Brio 100（<code>top</code> 俯视、<code>side</code> 侧视）放进 MuJoCo 方块任务场景，让 sim 渲染的画面和真实相机的画面在几何上重合。本页按实际操作顺序记录方法、每一步的数据、失败的尝试和误差来源，供后期写论文使用。</p>
+  <div class="tiles">
+    <div class="tile"><span class="v">0.68 / 0.59 px</span><span class="k">内参 RMS（top / side）</span></div>
+    <div class="tile"><span class="v">0.42 / 0.53 px</span><span class="k">外参重投影（top / side）</span></div>
+    <div class="tile"><span class="v">≈ 5 mm</span><span class="k">两次独立测量的重复性</span></div>
+    <div class="tile"><span class="v">10–20 px</span><span class="k">sim 与真实的手（刚体部分）</span></div>
+  </div>
+</header>
+
+<figure>
+  <img src="figures/real2sim/final_overlay.jpg" alt="最终结果：top 和 side 两个相机，真实画面、sim 轮廓叠加、50:50 混合" tabindex="0">
+  <figcaption><b>图 0 · 最终结果</b>（关闭阴影，只比较几何）。每行：真实画面（去畸变）/ sim 渲染的轮廓叠在真实画面上 / 50:50 混合。上：top，下：side。前臂塔、手腕、超声波传感器和手掌位置都重合；手指不重合是因为 sim 的关节停在默认角度，真实手是另一个姿态。</figcaption>
+</figure>
+
+<nav class="toc" aria-label="目录">
+  <ol>
+    <li><a href="#method">方法与坐标约定</a></li>
+    <li><a href="#board">标定板与程序验证</a></li>
+    <li><a href="#intr">内参标定（四轮）</a></li>
+    <li><a href="#placement">相机摆放</a></li>
+    <li><a href="#top">top 外参</a></li>
+    <li><a href="#side">side 外参</a></li>
+    <li><a href="#bench">sim 桌面与"残影"</a></li>
+    <li><a href="#result">最终结果与误差预算</a></li>
+    <li><a href="#ultra">超声波：初步观察</a></li>
+    <li><a href="#repro">复现命令</a></li>
+  </ol>
+</nav>
+
+<section id="method">
+  <h2><span class="no">01</span>方法与坐标约定</h2>
+  <p>真实相机要进 sim，需要两组参数：</p>
+  <ul>
+    <li><b>内参</b>：焦距 fx、fy，主点 cx、cy，镜头畸变 k1 k2 p1 p2 k3。只和镜头有关，用标定板拍多张照片求出。</li>
+    <li><b>外参</b>：相机在 sim 世界坐标系里的位置和朝向。sim 的坐标系由手定义，所以必须经由一个"相对于手的位置已知"的物体来求。</li>
+  </ul>
+  <div class="formula">T_world_cam = T_world_board · T_board_cam
+              （卷尺：棋盘相对手）   （图像 solvePnP：&lt; 1 mm）</div>
+  <p><code>T_board_cam</code> 由图像自动求出，非常准；<code>T_world_board</code> 靠卷尺量棋盘相对于前臂塔的位置，是整个流程的主要误差来源。</p>
+  <h3>坐标约定</h3>
+  <ul>
+    <li>场景 <code>scene_right_cube_orientation.xml</code>：手装在 (0, 0, 0.16)，手指指向 +x，掌心朝 +z，拇指在 −y 一侧。</li>
+    <li>前臂塔（<code>ForeArmStructure</code> + <code>TopTower</code>）：x −0.058…0.099，y −0.057…0.037，z 0.112…0.208 m。<b>前端面</b> x = 0.099，<b>小指侧面</b> y = 0.037。sim 塔宽 94 mm，真实塔量得 93 mm。</li>
+    <li>OpenCV → MuJoCo 相机坐标：<code>R_mj = R_cv · diag(1, −1, −1)</code>，<code>xyaxes</code> 取 <code>R_mj</code> 的前两列。</li>
+    <li>MuJoCo 3.x 相机：<code>focalpixel="fx fy"</code>，<code>principalpixel="W/2−(cx+0.5)  H/2−(cy+0.5)"</code>。这是相对图像中心的偏移，并有 0.5 px 的像素中心约定差；最初写错符号时主点误差 19.5 px，修正后 &lt; 0.1 px。</li>
+  </ul>
+</section>
+
+<section id="board">
+  <h2><span class="no">02</span>标定板与程序验证</h2>
+  <ul>
+    <li>ChArUco 板 7 × 5 格，方格 35 mm，标记 26 mm，字典 DICT_5X5_100（方块上的 AprilTag 用 36h11，二者不会混淆）。US Letter 100% 打印，贴在 4.53 mm 厚的硬板上。</li>
+    <li>尺寸校验：100 mm 检查条 = 100 mm；7 格 245.0 mm（35.00 mm/格），5 格 174.5 mm（34.90 mm/格），差异在钢尺读数误差内，保持 35.0。</li>
+    <li>选 ChArUco 的原因：每个角点有编号，只拍到部分板子也能用，拍画面边角时很关键。</li>
+  </ul>
+  <h3>合成数据端到端测试</h3>
+  <p>上真机之前，先用 MuJoCo 扮演"真实相机"（已知内参、畸变、位姿）去拍棋盘，再让流程从图像里还原（<code>tests/test_real2sim_cameras.py</code>）：</p>
+  <div class="tbl"><table>
+    <tr><th>项目</th><th>真值</th><th>还原值</th></tr>
+    <tr><td>fx（top）</td><td class="num">1000</td><td class="num">998</td></tr>
+    <tr><td>k1（top）</td><td class="num">−0.08</td><td class="num">−0.085</td></tr>
+    <tr><td>top 位置 / 朝向误差</td><td>–</td><td class="num">3.37 mm / 0.293°</td></tr>
+    <tr><td>side 位置 / 朝向误差</td><td>–</td><td class="num">0.48 mm / 0.055°</td></tr>
+    <tr><td>sim 与"真实"角点（含没参与标定的新位置）</td><td>–</td><td class="num">0.05–0.11 px</td></tr>
+  </table></div>
+  <p>结论：程序本身的误差远小于后面真机测量带来的误差。</p>
+</section>
+
+<section id="intr">
+  <h2><span class="no">03</span>内参标定（四轮）</h2>
+  <p>工具：<code>capture.py</code>（两个相机并排预览，SPACE 保存）→ <code>calibrate_intrinsics.py</code>（<code>cv2.calibrateCamera</code>，自动剔除误差 &gt; 3 倍中位数的照片，输出 3 × 4 的角点覆盖表）。前后四轮才合格：</p>
+  <div class="tbl"><table>
+    <tr><th>轮次</th><th>结果</th><th>问题</th><th>诊断依据</th></tr>
+    <tr><td>1 <span class="tag no">失败</span></td><td>top fx 1362；side fx 2141，k3 = 24.9</td><td>覆盖不全：top 右半边、side 最左列和最下行没有角点</td><td>覆盖表；同型号相机 fx 相差 57%；k3 不合理</td></tr>
+    <tr><td>2 <span class="tag no">失败</span></td><td>top fx 1762；side fx 1962</td><td>side 70 张几乎相同（自动保存时棋盘不动）；20 张太近失焦</td><td>逐张统计角点位置和清晰度（~13 vs 正常 ~40）</td></tr>
+    <tr><td>3 <span class="tag no">失败</span></td><td>side RMS 0.91 px</td><td>纸没贴平，棋盘呈波浪形</td><td>照片中格线弯曲</td></tr>
+    <tr><td>4 <span class="tag mid">不完整</span></td><td>side RMS 0.55 px</td><td>最下一行覆盖为 0：相机贴近桌面，棋盘下沿总停在桌面线</td><td>所有照片角点 y 最大值 ≈ 560</td></tr>
+    <tr><td>4+ <span class="tag ok">合格</span></td><td>side RMS 0.59 px，12 格全覆盖</td><td>暂时抬高相机补拍 16 张</td><td>–</td></tr>
+  </table></div>
+  <figure>
+    <img src="figures/real2sim/intr_bad_views.jpg" alt="第 2 轮的问题照片" tabindex="0" loading="lazy">
+    <figcaption><b>图 A1 · 第 2 轮</b>。左上：棋盘静止不动的重复视角；右上、左下：离得太近而失焦；右下：top 只有部分棋盘入画。</figcaption>
+  </figure>
+  <div class="pair">
+    <figure>
+      <img src="figures/real2sim/intr_warped_board.jpg" alt="第 3 轮，纸面不平" tabindex="0" loading="lazy">
+      <figcaption><b>图 A2 · 第 3 轮</b>。纸没贴平，下排中间格线明显弯曲，RMS 0.91 px。</figcaption>
+    </figure>
+    <figure>
+      <img src="figures/real2sim/intr_side_bottom_missing.jpg" alt="第 4 轮，棋盘底边停在桌面线" tabindex="0" loading="lazy">
+      <figcaption><b>图 A3 · 第 4 轮</b>。棋盘已平整，但 side 相机贴近桌面，棋盘底边总停在桌面线上，画面下半部分拍不到。</figcaption>
+    </figure>
+  </div>
+  <div class="note">
+    <b>经验</b>
+    <ul>
+      <li><b>RMS 小不代表结果对。</b>第 1 轮 side 的 RMS 只有 0.46 px，fx 却错了 57%：覆盖不全时，错误的焦距加夸张的畸变也能拟合好中间那块区域。</li>
+      <li>用同型号相机互相印证，再用规格核对（Brio 100 对角视场 58°，1920×1080 下 fx ≈ 1987）。</li>
+      <li>定焦相机太近会失焦；棋盘要完整入画，宽度占画面的 1/4–1/2；每张都换位置和角度，不要开自动保存。</li>
+      <li>内参与相机放在哪里无关，可以暂时移动相机去补拍拍不到的区域。</li>
+    </ul>
+  </div>
+  <h3>最终内参（1920 × 1080）</h3>
+  <div class="tbl"><table>
+    <tr><th></th><th>top</th><th>side</th></tr>
+    <tr><td>照片数</td><td class="num">32</td><td class="num">43</td></tr>
+    <tr><td>RMS 重投影误差</td><td class="num">0.675 px</td><td class="num">0.587 px</td></tr>
+    <tr><td>fx, fy</td><td class="num">1960.11, 1956.53</td><td class="num">1935.71, 1931.20</td></tr>
+    <tr><td>cx, cy</td><td class="num">981.47, 525.55</td><td class="num">945.93, 502.02</td></tr>
+    <tr><td>视场 水平 / 垂直</td><td class="num">52.2° / 30.9°</td><td class="num">52.8° / 31.2°</td></tr>
+    <tr><td>k1, k2</td><td class="num">0.1728, −0.8304</td><td class="num">0.1739, −0.7092</td></tr>
+    <tr><td>p1, p2</td><td class="num">0.0019, 0.0006</td><td class="num">0.0008, 0.0007</td></tr>
+    <tr><td>k3</td><td class="num">1.1616</td><td class="num">0.4968</td></tr>
+  </table></div>
+  <div class="pair">
+    <figure>
+      <img src="figures/real2sim/coverage_top.jpg" alt="top 内参角点分布" tabindex="0" loading="lazy">
+      <figcaption><b>图 B1 · top</b> 内参照片的全部角点（黄点）。</figcaption>
+    </figure>
+    <figure>
+      <img src="figures/real2sim/coverage_side.jpg" alt="side 内参角点分布" tabindex="0" loading="lazy">
+      <figcaption><b>图 B2 · side</b> 内参照片的全部角点。</figcaption>
+    </figure>
+  </div>
+  <ul>
+    <li>top 的 RMS 0.675 px 略高于 0.5 的经验目标。逐张检查：每张都在 0.39–1.03 px、分布均匀，没有离群照片，推测来自手持晃动和 MJPG 压缩。50 cm 处约 0.17 mm，可以接受。</li>
+    <li>两个相机 fx 相差 1.3%，畸变系数接近，属于同型号个体差异。</li>
+    <li>MuJoCo 渲染的是无畸变针孔图像：真实帧在和 sim 比较或输入 sim 训练的策略之前，要先 <code>cv2.undistort(img, K, dist)</code>。</li>
+  </ul>
+</section>
+
+<section id="placement">
+  <h2><span class="no">04</span>相机摆放</h2>
+  <figure>
+    <img src="figures/real2sim/camera_framing.jpg" alt="两个相机的视角" tabindex="0" loading="lazy">
+    <figcaption><b>图 C1 · 相机视角</b>（黄线为 8 × 6 网格）。上：top，几乎正俯视，整只手和方块活动范围都在画面里。下：side，从小指一侧约 54 cm 处看过去，比桌面高约 5 cm。</figcaption>
+  </figure>
+  <p>外参拍完后，相机和手都不能再动。实际操作中这出过两次问题，见 05 和 06 节。</p>
+</section>
+
+<section id="top">
+  <h2><span class="no">05</span>top 外参</h2>
+  <div class="pair">
+    <figure>
+      <img src="figures/real2sim/top_board_flat_24of24.jpg" alt="top 看到平放的棋盘" tabindex="0" loading="lazy">
+      <figcaption><b>图 C2</b> · 棋盘平放在手的小指一侧，长边用直尺靠住塔的侧面保持平行，24/24 角点。</figcaption>
+    </figure>
+    <figure>
+      <img src="figures/real2sim/measure_guide.jpg" alt="测量参考面" tabindex="0" loading="lazy">
+      <figcaption><b>图 C3 · 测量参考面</b>。红 = 塔的前端面（x = 0.099），蓝 = 塔的小指侧面（y = 0.037）。上：sim；下：真实 top 画面。</figcaption>
+    </figure>
+  </div>
+  <p>需要量的量：<b>H</b> 塔底面离桌面 = 20 mm（桌面 z = 0.112 − 0.020 = 0.092）；<b>T</b> 硬板厚 4.53 mm；<b>D</b> 前端面 → 格子图案远端（靠指尖）；<b>B</b> 小指侧面 → 格子图案最近的边。棋盘 245 × 175 mm：</p>
+  <div class="formula">中心 x = 0.099 + D − 0.1225
+中心 y = 0.037 + B + 0.0875
+中心 z = 0.092 + T</div>
+
+  <h3>第一次测量（D = 201 mm，B = 55 mm）</h3>
+  <p>相机 (0.197, −0.019, 0.663) m，5 帧之间位置差 0.9 mm、角度差 0.09°。把 sim 的手按这个位姿渲染、叠到真实画面上，刚体前臂塔的边缘偏差约 10–20 px（约 3–5 mm）。</p>
+  <figure>
+    <img src="figures/real2sim/first_pose_tower_zoom.jpg" alt="手腕和前臂塔放大对比" tabindex="0" loading="lazy">
+    <figcaption><b>图 D1</b> · 第一次测量后，手腕和前臂塔的放大对比。左：真实；中：sim；右：叠加。</figcaption>
+  </figure>
+  <div class="note warn">
+    <b>尝试过但放弃：轮廓自动拟合</b>
+    <p>在塔的区域对暗色轮廓做 IoU 最大化，搜索 (dx, dy, dyaw)。IoU 从 0.534 升到 0.604，但最优解 dx = +8 mm 落在搜索范围边界上，说明是在"凑"。真实塔上放了面包板和线缆，黑色外壳还反光，轮廓提取不干净，因此没有采用。</p>
+  </div>
+  <figure>
+    <img src="figures/real2sim/tower_silhouette_fit_rejected.jpg" alt="被放弃的轮廓拟合" tabindex="0" loading="lazy">
+    <figcaption><b>图 D2</b> · 被放弃的轮廓拟合。绿 = 二者重合，蓝 = 只有 sim，红 = 只有真实。左：测量位姿；右：拟合结果。</figcaption>
+  </figure>
+
+  <h3>手被移动后重测（D = 209 mm，B = 50 mm）</h3>
+  <p>手的位置变了，top 外参必须重做（sim 坐标系跟着手走，相机不用动）。重测时出了两个意外，都是靠检查结果发现的：</p>
+  <ol>
+    <li>文件夹混入手移动前的 5 张旧照片，9 帧之间位置差 216 mm。移走旧照片后恢复正常。</li>
+    <li>棋盘方向放反（100 mm 横线朝外），相机算到 y = 0.363，sim 的手完全不在画面里。配置改为 <code>yaw = 180°</code> 后恢复正常，不用重拍。</li>
+  </ol>
+  <p>最终：相机 <b>(0.197, −0.014, 0.664) m</b>，4 帧，重投影 0.42 px，帧间差 0.46 mm / 0.045°。两次独立摆放、独立测量，相机位置只差约 5 mm，这就是卷尺测量的重复性。</p>
+  <figure>
+    <img src="figures/real2sim/top_overlay_with_board.jpg" alt="最终 top 位姿的叠加" tabindex="0" loading="lazy">
+    <figcaption><b>图 D3</b> · 最终 top 位姿下 sim（上：洋红轮廓；下：半透明）与真实画面，棋盘仍在画面里。</figcaption>
+  </figure>
+
+  <h3>相机被轻微碰到后的修正</h3>
+  <p>top 外参拍完后相机被碰了一下。<code>correct_bump.py</code> 把外参照片和碰后照片的静止背景做 ORB 匹配（356 个点），用<b>纯旋转</b>模型拟合两组视线方向（SVD）：转了 <b>0.171°</b>，残差中位数 <b>0.93 px</b>。残差这么小说明纯旋转假设成立；如果相机还平移了，残差会有好几个像素，程序会拒绝修正。0.17° 在手的位置约 1.5 mm。</p>
+</section>
+
+<section id="side">
+  <h2><span class="no">06</span>side 外参</h2>
+  <h3>放弃的方案</h3>
+  <ol>
+    <li>棋盘立在手和相机之间，靠目测对齐竖直和平行：太难，误差大。</li>
+    <li>两个相机同时看一块斜放的棋盘：棋盘的世界位姿由已标定的 top 给出，side 一个数都不用量（已实现：<code>--via side=top:SESSION</code>）。但 side 相机当时离手只有约 30 cm，斜放的棋盘总有一个相机看不全。</li>
+  </ol>
+  <figure>
+    <img src="figures/real2sim/shared_view_attempt.jpg" alt="两个相机同时看斜放棋盘的尝试" tabindex="0" loading="lazy">
+    <figcaption><b>图 E1</b> · 两个相机同时看斜放棋盘：top 16/24，side 只有 5/24。</figcaption>
+  </figure>
+  <h3>最终方案：棋盘贴着塔立起来</h3>
+  <div class="pair">
+    <div style="display:grid;gap:12px;min-width:0">
+      <p>棋盘<b>背面贴紧塔的小指侧面</b>立在桌上，印刷面朝 side 相机，横线在下。这样竖直和平行自动满足，只需要量两个短距离：</p>
+      <ul>
+        <li><b>a</b> = 130 mm：前端面 → 格子图案靠指尖的边</li>
+        <li><b>M</b> = 45 mm：桌面 → 格子图案下边缘</li>
+      </ul>
+      <div class="formula">中心 x  = 0.099 + a − 0.1225 = 0.1065
+印刷面 y = 0.037 + T          = 0.0415
+中心 z  = 0.092 + M + 0.0875 = 0.2245
+朝向：yaw 180°，tilt 90°</div>
+      <p>结果：相机 <b>(0.190, 0.578, 0.140) m</b>，5 帧，重投影 0.53 px，帧间差 1.66 mm / 0.164°。</p>
+    </div>
+    <figure>
+      <img src="figures/real2sim/side_board_standing.jpg" alt="side 外参照片" tabindex="0" loading="lazy">
+      <figcaption><b>图 E2</b> · side 外参照片，棋盘贴着塔立起，24/24。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="bench">
+  <h2><span class="no">07</span>sim 桌面与"残影"</h2>
+  <p>第一次叠加时 top 视角出现两个往右偏的"残影"。原因：sim 有两盏会投射阴影的灯，手在地面上投下两个影子；sim 地面在 z = 0，比真实桌面低 92 mm，斜射光让影子远离手。关掉阴影后残影消失，说明与相机标定无关。</p>
+  <div class="pair">
+    <figure>
+      <img src="figures/real2sim/overlay_with_shadow_ghosts.jpg" alt="带影子残影的叠加" tabindex="0" loading="lazy">
+      <figcaption><b>图 F1</b> · top 视角右侧的两个"残影"是 sim 里手的两个影子。</figcaption>
+    </figure>
+    <figure>
+      <img src="figures/real2sim/top_overlay_no_shadow.jpg" alt="关闭阴影后的叠加" tabindex="0" loading="lazy">
+      <figcaption><b>图 F2</b> · 关闭阴影后只剩一只手。</figcaption>
+    </figure>
+  </div>
+  <p>处理：在 <code>_real2sim</code> 场景里加一个顶面在 z = 0.092 的桌面（<code>rig.yaml</code> 的 <code>bench</code>）。<b>训练场景不变</b>，因为训练环境用 z &lt; 0.05 判断方块掉落，改原场景的地面会破坏它。验证：方块掉在手旁静止于 z = 0.1108（理论 0.110）；side 视角 sim 桌面边缘和真实桌面重合。在 <code>_real2sim</code> 场景上跑任务环境时，<code>drop_height</code> 要改到约 0.13。</p>
+  <figure>
+    <img src="figures/real2sim/overlay_with_bench.jpg" alt="加桌面后的叠加" tabindex="0" loading="lazy">
+    <figcaption><b>图 F3</b> · 加上桌面后（阴影开启），影子回到手附近，side 视角桌面边缘重合。</figcaption>
+  </figure>
+</section>
+
+<section id="result">
+  <h2><span class="no">08</span>最终结果与误差预算</h2>
+  <div class="tbl"><table>
+    <tr><th></th><th>top</th><th>side</th></tr>
+    <tr><td>位置 (m)</td><td class="num">(0.197, −0.014, 0.664)</td><td class="num">(0.190, 0.578, 0.140)</td></tr>
+    <tr><td>外参重投影</td><td class="num">0.42 px</td><td class="num">0.53 px</td></tr>
+    <tr><td>帧间一致性</td><td class="num">0.46 mm / 0.045°</td><td class="num">1.66 mm / 0.164°</td></tr>
+    <tr><td>sim 与真实的手（目测，刚体）</td><td class="num">10–20 px（3–5 mm）</td><td class="num">10–20 px（3–5 mm）</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>误差来源</th><th>量级</th></tr>
+    <tr><td>相机相对棋盘（solvePnP，多帧平均）</td><td class="num">&lt; 1 mm，&lt; 0.2°</td></tr>
+    <tr><td>内参</td><td class="num">0.6–0.7 px ≈ 0.2 mm @ 50 cm</td></tr>
+    <tr><td>棋盘相对手（卷尺 + 目测对齐）—— 主要误差</td><td class="num">±1–2 mm，±1–2°</td></tr>
+    <tr><td>top 碰撞修正</td><td class="num">0.17°，残差 0.9 px</td></tr>
+    <tr><td>sim 模型与真实手</td><td class="num">塔宽 94 vs 93 mm</td></tr>
+    <tr><td><b>合计（两次独立测量的重复性）</b></td><td class="num"><b>≈ 5 mm</b></td></tr>
+  </table></div>
+  <h3>局限与后续</h3>
+  <ul>
+    <li>还没做定量的独立验证（棋盘放到新的、量过的位置，算角点误差）；<code>overlay.py</code> 已支持。</li>
+    <li>手指关节状态未知，目前只用刚体部分（塔、手腕）检验；用真实舵机角度驱动 sim 关节即可对齐手指。</li>
+    <li>更高精度：在前臂塔上贴一个位置已知的标记，去掉卷尺这一环。</li>
+    <li>真实桌面在指尖前方就到边，sim 桌面没有建模这个边缘。</li>
+    <li>相机或手移动后外参要重做，内参不用；小幅碰撞可用 <code>correct_bump.py</code> 修正。</li>
+  </ul>
+</section>
+
+<section id="ultra">
+  <h2><span class="no">09</span>超声波：初步观察</h2>
+  <p>HC-SR04 由 ESP32-S3 驱动（<code>ORCA Ultra Sonic/src/main.cpp</code>，TRIG 10 / ECHO 18，每 100 ms 测一次，输出 <code>Distance: xx.x cm</code>），接在 COM4（FTDI）上；手的舵机适配器在 COM3。<code>read_ultrasonic.py</code> 改为通过"监听哪个口在输出距离"来找端口，不向任何端口写数据。</p>
+  <div class="tbl"><table>
+    <tr><th>10 秒实测</th><th>结果</th></tr>
+    <tr><td>频率</td><td class="num">9.8 Hz（100 个读数）</td></tr>
+    <tr><td>距离</td><td class="num">全部 26.0 mm，标准差 0</td></tr>
+  </table></div>
+  <div class="note warn">
+    <b>传感器现在测到的是手自己</b>
+    <p>从 top 画面看，传感器平放在前臂塔上、两个探头朝向手掌根部，前方 2–3 cm 就是手掌，所以读数恒为 26 mm，接近 HC-SR04 约 2 cm 的最小量程。按现在的安装方式，它看不到手掌上的方块。下一步需要先确定传感器要测什么，再决定安装位置，然后在 sim 里按同样的位置加一个测距传感器做对比。</p>
+  </div>
+</section>
+
+<section id="repro">
+  <h2><span class="no">10</span>复现命令</h2>
+<pre># 0. 打印标定板（Letter，100%），贴到硬板上，量 100 mm 检查条和格子总长
+python real2sim/cameras/make_targets.py
+
+# 1. 内参（整块棋盘入画、覆盖四角四边、倾斜 30–45°、手动按 SPACE）
+python real2sim/cameras/capture.py intr_top  --cams top
+python real2sim/cameras/capture.py intr_side --cams side
+python real2sim/cameras/calibrate_intrinsics.py intr_top  --cam top
+python real2sim/cameras/calibrate_intrinsics.py intr_side --cam side
+
+# 2. 外参：top 棋盘平放（量 D、B），side 棋盘贴塔立起（量 a、M），写进 rig.yaml
+python real2sim/cameras/capture.py extr_top  --cams top
+python real2sim/cameras/capture.py extr_side --cams side
+python real2sim/cameras/calibrate_extrinsics.py --cam-session top=extr_top --cam-session side=extr_side
+
+# 2b. 相机拍完后被轻微碰到
+python real2sim/cameras/correct_bump.py top real2sim/data/extr_top/top/008.png real2sim/data/extr_top/after_bump.png
+
+# 3. 检查 & 生成图
+python real2sim/cameras/show_scene.py --calibrated
+cd real2sim/cameras &amp;&amp; python make_figures.py
+
+# 超声波
+python hardware/ultrasonic/read_ultrasonic.py --raw</pre>
+  <p>产物：<code>real2sim/cameras/calib/cameras.json</code>（位姿 + 内参）、<code>top_intrinsics.json</code>、<code>side_intrinsics.json</code>、<code>src/orca_sim/scenes/v2/scene_right_cube_orientation_real2sim.xml</code>、<code>real2sim/cameras/rig.yaml</code>（全部测量值及换算）。分支 <code>real2sim-cameras</code>。</p>
+</section>
+
+<footer>点击任意图片可放大。本页与 <code>docs/real2sim_camera_calibration.md</code> 内容一致，图片在 <code>docs/figures/real2sim/</code>。</footer>
+</div>
+
+<div id="lb" hidden role="dialog" aria-label="放大的图片"><img alt=""></div>
+<script>
+(function () {
+  var lb = document.getElementById("lb"), big = lb.querySelector("img");
+  function open(img) { big.src = img.src; big.alt = img.alt; lb.hidden = false; }
+  document.querySelectorAll("figure img").forEach(function (img) {
+    img.addEventListener("click", function () { open(img); });
+    img.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(img); } });
+  });
+  lb.addEventListener("click", function () { lb.hidden = true; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") lb.hidden = true; });
+})();
+</script>
