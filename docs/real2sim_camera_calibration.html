@@ -360,6 +360,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <tr><td>4</td><td>约 4 cm</td><td class="num">42.2</td><td class="num">39.0</td><td class="num">40.0</td><td class="num">42.9</td><td class="num">+3.9</td></tr>
     <tr><td>3</td><td>手掌远端</td><td class="num">61.4</td><td class="num">61.0</td><td class="num">57.8</td><td class="num">60.7</td><td class="num">−0.3</td></tr>
     <tr><td>5</td><td>中指第二指节上</td><td class="num">77.1</td><td class="num">80.0</td><td class="num">74.4</td><td class="num">77.3</td><td class="num">−2.7</td></tr>
+    <tr><td><b>6（验证）</b></td><td>约 5 cm，新位置</td><td class="num">54.0</td><td class="num">52.0</td><td class="num">53.0</td><td class="num">55.9</td><td class="num"><b>+3.9</b></td></tr>
   </table></div>
   <p style="font-size:13px;color:var(--muted)">单位 mm，按距离排序；位置编号是采集顺序。</p>
   <figure>
@@ -371,7 +372,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <ul>
       <li><b>真实传感器</b>（位置 2–5）：拟合 读数 = 0.97 × 相机 + 3.1 mm，残差约 ±4 mm，没有明显的固定偏差或比例误差；离散程度与相机参考值本身的误差相当。2 cm 以内是盲区，读数卡在 20 mm。</li>
       <li><b>sim 几何距离</b>：比相机参考值稳定地短 <b>2.9 ± 0.6 mm</b>，是固定偏差：0.5 mm 来自 sim 方块（36 mm）比真实（35 mm）大，其余来自 top 与 side 相机之间的微小不一致。</li>
-      <li><b>标定后的 sim</b>：读数 = max(圆锥内最近命中 + 2.9 mm, 20 mm)（<code>rig.yaml</code> 的 <code>range_offset_m</code>、<code>min_range_m</code>）。与真实传感器：盲区一致；位置 2–5 平均绝对误差 3.3 mm，RMS 3.9 mm。偏移量用同样 4 个点标定（样本内），还需要新位置验证。</li>
+      <li><b>标定后的 sim</b>：读数 = max(圆锥内最近命中 + 2.9 mm, 20 mm)（<code>rig.yaml</code> 的 <code>range_offset_m</code>、<code>min_range_m</code>）。与真实传感器：盲区一致；位置 2–5 平均绝对误差 3.3 mm，RMS 3.9 mm（样本内）。</li>
+      <li><b>样本外验证</b>：参数固定后在新位置 6（约 5 cm）测试，sim 55.9 mm、真实 52.0 mm，误差 +3.9 mm，与样本内同一量级，模型对新位置同样成立。</li>
       <li>倾角用估计值或竖直、是否加入射角限制（&lt; 20°），结果差 &lt; 1 mm，因为这些位置的面都正对传感器。</li>
     </ul>
   </div>
@@ -379,6 +381,14 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <b>镜面反射</b>
     <p>用户观察到：方块面不平行于传感器（例如转 45°）时读数会变。这是超声波的镜面反射，斜面把声波反射到别处。"圆锥内最近距离"模型不包含这一点。下一步用贴 AprilTag 的方块，在手指拨动方块的真实过程中逐帧采集方块姿态和读数，加入入射角模型后对比。</p>
   </div>
+  <h3>同步录制（三路数据对齐）</h3>
+  <ul>
+    <li><code>real2sim/recording/record.py</code>：top 相机、side 相机、超声波各一个线程，数据到达即用<b>同一个时钟</b>打时间戳，原始数据分别保存。</li>
+    <li><code>align.py</code>：每个超声波读数配上时间最近的 top 帧和 side 帧，输出 <code>aligned.csv</code>（<code>t, us_mm, top_file, top_dt_ms, side_file, side_dt_ms, ok</code>）。<code>ok = 1</code> 表示两帧都在 25 ms 以内；不删行，只标记。</li>
+    <li>发现并修复的错位：串口在相机启动（约 1 分钟）期间已打开，FTDI 驱动积压了 602 行旧读数且清不掉，录制开始时一次性到达、时间戳全错。修复后相机就绪才开串口，并丢弃积压；<code>align.py</code> 检测读数是否挤在一起。</li>
+    <li>修复后 8 秒测试：两个相机 30 fps、无丢帧；超声波每秒 10 个；78 个读数中 74 个两帧都在 25 ms 以内（中位数 8.9 ms），其余 4 个已标记。</li>
+    <li>到达时间 ≠ 采集时间（相机曝光与 USB 延迟、FTDI 约 16 ms 缓冲），之后用一次同步测试测出各路固定延迟，用 <code>--lat-*-ms</code> 修正。</li>
+  </ul>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 

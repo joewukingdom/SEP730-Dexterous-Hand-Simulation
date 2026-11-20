@@ -16,7 +16,7 @@ import twin_check as W
 C = W.C
 # (session, cube near-face pixel in the side image, sim reading mm or None)
 POSITIONS = [("pos1", 1322, 20.0), ("pos2", 1245, 26.8), ("pos4", 1193, 42.9), ("pos3", 1128, 60.7),
-             ("pos5", 1075, 77.3)]  # sim = calibrated reading
+             ("pos6", 1153, 55.9), ("pos5", 1075, 77.3)]  # sim = calibrated reading; pos6 = held-out
 TRANSDUCER_PX = (1338, 515)
 
 

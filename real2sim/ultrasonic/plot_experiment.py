@@ -19,6 +19,7 @@ POS = ["P1", "P2", "P4", "P3", "P5"]
 CAMERA = [4.6, 27.0, 42.2, 61.4, 77.1]
 REAL = [20.0, 33.0, 39.0, 61.0, 80.0]
 SIM = [20.0, 26.8, 42.9, 60.7, 77.3]
+VAL = (54.0, 52.0, 55.9)  # P6, held-out: camera, real, calibrated sim (parameters frozen)
 
 INK, INK2, GRID, SURF = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 BLUE, ORANGE = "#2a78d6", "#eb6834"  # categorical slots 1, 2 (validated, light surface)
@@ -38,6 +39,11 @@ def main() -> None:
     # real: larger ring, sim: smaller filled square on top, so coincident points stay visible
     ax.plot(CAMERA, REAL, "o", ms=11, mfc="none", mec=BLUE, mew=2.2, zorder=3, label="real HC-SR04")
     ax.plot(CAMERA, SIM, "s", ms=6, color=ORANGE, mec=SURF, mew=1.5, zorder=4, label="sim (calibrated)")
+    # held-out validation point (not used for the 2.9 mm offset): same marks, labelled
+    ax.plot([VAL[0]], [VAL[1]], "o", ms=11, mfc="none", mec=BLUE, mew=2.2, zorder=3)
+    ax.plot([VAL[0]], [VAL[2]], "s", ms=6, color=ORANGE, mec=SURF, mew=1.5, zorder=4)
+    ax.annotate("P6 held-out", (VAL[0], min(VAL[1], VAL[2])), xytext=(4, -16), textcoords="offset points",
+                fontsize=8.5, color=INK, ha="left", va="top", fontweight="bold")
     for x, y, p in zip(CAMERA, REAL, POS):
         ax.annotate(p, (x, min(y, s := SIM[POS.index(p)])), xytext=(0, -16), textcoords="offset points",
                     fontsize=8.5, color=INK2, ha="center", va="top")
