@@ -427,6 +427,23 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li>采用：<b>分开求解再融合</b>。朝向取平均；位置加权最小二乘，沿视线（深度）方向权重 0.1。每个相机与融合结果差约 5 mm、3°；sim 超声波 30.6 mm vs 真实 33.0 mm（差 2.4 mm）。</li>
     <li>精度：位置约 5–10 mm，朝向约 3–5°，剩余误差主要来自两个相机外参之间约 5–10 mm 的不一致。</li>
   </ol>
+  <h3>用训练好的 policy 拨动方块（run01）</h3>
+  <p><code>policy_to_replay.py</code> 在 sim 里运行训练好的 PPO（方块朝向取相机测得的真实朝向），把 sim 达到的关节角转换成 orca_core <code>replay_continuous.py</code> 的格式，由用户在真实手上回放（开环）。安全措施：手腕锁定在中立位、放慢 8.6 倍（≤ 60°/s）、截断到 <code>joint_roms</code>（真实 thumb_mcp 只有 −5°~40°）、开头结尾各 2 秒过渡；先空跑确认。</p>
+  <p>过程：0–8 秒方块在手掌上；约 7 秒拇指压到方块，方块倾斜；9–23 秒拇指按住方块；约 24 秒方块被弹飞（推测是回到中立位时），用户按 Ctrl+C，硬件无损。单个标签的两个姿态解现在按"与上一帧最接近"来选，避免来回跳。</p>
+  <figure>
+    <img src="figures/real2sim/run01_timeline.png" alt="run01 时间线" tabindex="0" loading="lazy">
+    <figcaption><b>图 J · run01</b>。上：真实超声波与两种 sim 模型（> 150 mm 表示没测到方块，画在 160）；下：光束与方块正对面之间的夹角。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <tr><th>sim 模型</th><th>"能否测到方块"与真实一致</th><th>都测到时 sim − 真实</th></tr>
+    <tr><td>圆锥内最近距离</td><td class="num">36%（80/223）</td><td class="num">+9.8 mm</td></tr>
+    <tr><td><b>入射角 ≤ 20° 才有回波</b></td><td class="num"><b>94%（209/223）</b></td><td class="num">+9.9 mm</td></tr>
+  </table></div>
+  <ul>
+    <li>方块倾斜后正对面与光束夹角 21–25°，真实传感器读到墙（&gt; 640 mm）或无回波，与用户观察一致；<b>入射角模型能复现，最近距离模型不能</b>。</li>
+    <li>阈值未被确定：倾斜阶段集中在 21–25°，能测到的阶段 ≤ 20°；θ = 18° / 20° / 22° 时一致率 86% / 88% / 50%，需要覆盖更多角度的数据。</li>
+    <li>距离偏差 +10 mm：方块位置来自两相机融合，x 方向约 10 mm 系统偏差（两相机之间 5–10 mm 的不一致）；直接用 side 画面测距时误差在 ±4 mm 内。</li>
+  </ul>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 

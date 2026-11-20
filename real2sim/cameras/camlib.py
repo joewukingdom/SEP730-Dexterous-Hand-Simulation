@@ -352,6 +352,51 @@ def ultrasonic_xml(cfg: dict) -> tuple[str, str]:
     return "".join(sites), "\n  <sensor>" + "".join(sensors) + "\n  </sensor>"
 
 
+def ultrasonic_reading_specular(model, data, cfg: dict | None = None, max_incidence_deg: float = 20.0,
+                                ignore_bodies: set[int] | None = None) -> float | None:
+    """Like ultrasonic_reading, but a ray only returns an echo if it meets the surface within
+    `max_incidence_deg` of the surface normal (sound hitting a tilted face is reflected away;
+    the real sensor then hears something far behind or nothing). Normals are measured from
+    two extra rays 1 mm beside each ray. `ignore_bodies`: body ids the rays pass through."""
+    import mujoco
+    best = None
+    excl = ignore_bodies or set()
+    for i in range(model.nsensor):
+        if not model.sensor(i).name.startswith("us_"):
+            continue
+        sid = model.sensor_objid[i]
+        o = data.site_xpos[sid].copy()
+        R = data.site_xmat[sid].reshape(3, 3)
+        v = R[:, 2].copy()
+        g = np.array([-1], np.int32)
+        t = mujoco.mj_ray(model, data, o, v, None, 1, -1, g)
+        if t < 0 or model.geom_bodyid[g[0]] in excl:
+            continue
+        p = o + t * v
+        pts = []
+        for e in (R[:, 0], R[:, 1]):
+            g2 = np.array([-1], np.int32)
+            t2 = mujoco.mj_ray(model, data, o + 1e-3 * e, v, None, 1, -1, g2)
+            if t2 < 0 or g2[0] != g[0]:
+                break
+            pts.append(o + 1e-3 * e + t2 * v)
+        if len(pts) < 2:
+            continue  # ray hits an edge: no clean reflection
+        n = np.cross(pts[0] - p, pts[1] - p)
+        if np.linalg.norm(n) < 1e-12:
+            continue
+        n /= np.linalg.norm(n)
+        if np.degrees(np.arccos(min(1.0, abs(float(n @ v))))) > max_incidence_deg:
+            continue
+        if best is None or t < best:
+            best = t
+    if best is None:
+        return None
+    if cfg:
+        best = max(best + cfg.get("range_offset_m", 0.0), cfg.get("min_range_m", 0.0))
+    return best
+
+
 def ultrasonic_reading(model, data, cfg: dict | None = None) -> float | None:
     """Sim HC-SR04 distance in m: nearest hit over the us_* rays (None = no echo).
 

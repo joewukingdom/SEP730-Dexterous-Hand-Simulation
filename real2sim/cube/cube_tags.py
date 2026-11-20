@@ -43,8 +43,14 @@ def detector() -> cv2.aruco.ArucoDetector:
     return cv2.aruco.ArucoDetector(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11), p)
 
 
-def tag_poses(img: np.ndarray, intr: C.Intrinsics, det=None) -> dict[int, tuple[np.ndarray, float]]:
-    """{id: (T_cam_tag, reprojection px)}; tag frame: x right, y up, z out of the tag."""
+def tag_poses(img: np.ndarray, intr: C.Intrinsics, det=None, prior_R_cam_cube: np.ndarray | None = None,
+              layout: dict | None = None) -> dict[int, tuple[np.ndarray, float]]:
+    """{id: (T_cam_tag, reprojection px)}; tag frame: x right, y up, z out of the tag.
+
+    A single square seen nearly face-on has two poses that fit its corners almost equally
+    well (IPPE returns both); picking the lower error lets the pose flip between them from
+    frame to frame. With `prior_R_cam_cube` (e.g. the previous frame) and `layout`, the
+    solution whose implied cube orientation is closest to the prior is kept instead."""
     det = det or detector()
     corners, ids, _ = det.detectMarkers(img)
     out = {}
@@ -56,12 +62,21 @@ def tag_poses(img: np.ndarray, intr: C.Intrinsics, det=None) -> dict[int, tuple[
         if int(i) > 5:
             continue
         img_pts = c.reshape(4, 2).astype(np.float64)
-        ok, rv, tv = cv2.solvePnP(obj, img_pts, intr.K_np, intr.dist_np, flags=cv2.SOLVEPNP_IPPE_SQUARE)
-        if not ok:
+        n, rvs, tvs, errs = cv2.solvePnPGeneric(obj, img_pts, intr.K_np, intr.dist_np,
+                                                flags=cv2.SOLVEPNP_IPPE_SQUARE)
+        if not n:
             continue
-        proj, _ = cv2.projectPoints(obj, rv, tv, intr.K_np, intr.dist_np)
+        cands = [(C.make_T(cv2.Rodrigues(rv)[0], tv.ravel()), float(e)) for rv, tv, e in
+                 zip(rvs, tvs, np.asarray(errs).ravel())]
+        L = (layout or {}).get("tags", {}).get(str(int(i)))
+        if prior_R_cam_cube is not None and L is not None and len(cands) > 1:
+            R_ct = np.asarray(L["T_cube_tag"])[:3, :3]
+            T, _ = min(cands, key=lambda c: C.rot_angle_deg(c[0][:3, :3] @ R_ct.T, prior_R_cam_cube))
+        else:
+            T, _ = min(cands, key=lambda c: c[1])
+        proj, _ = cv2.projectPoints(obj, cv2.Rodrigues(T[:3, :3])[0], T[:3, 3], intr.K_np, intr.dist_np)
         err = float(np.linalg.norm(proj.reshape(4, 2) - img_pts, axis=1).mean())
-        out[int(i)] = (C.make_T(cv2.Rodrigues(rv)[0], tv.ravel()), err)
+        out[int(i)] = (T, err)
     return out
 
 
@@ -215,14 +230,16 @@ def tag_corners_cube(layout: dict, i: int) -> np.ndarray:
     return (np.asarray(layout["tags"][str(i)]["T_cube_tag"]) @ obj.T).T[:, :3]
 
 
-def cube_pose_joint(img: np.ndarray, intr: C.Intrinsics, layout: dict, det=None, max_err: float = 2.0):
+def cube_pose_joint(img: np.ndarray, intr: C.Intrinsics, layout: dict, det=None, max_err: float = 2.0,
+                    prior_R_cam_cube: np.ndarray | None = None):
     """T_cam_cube from ONE PnP over all corners of all visible tags (starts from the
-    per-tag average). Returns (T or None, ids used, reprojection px)."""
+    per-tag average). Returns (T or None, ids used, reprojection px).
+    prior_R_cam_cube: resolves each tag's two-fold pose ambiguity (see tag_poses)."""
     det = det or detector()
     corners, ids, _ = det.detectMarkers(img)
     if ids is None:
         return None, [], None
-    poses = tag_poses(img, intr, det)
+    poses = tag_poses(img, intr, det, prior_R_cam_cube, layout)
     T_init, used = cube_pose_in_cam(poses, layout, max_err)
     if T_init is None:
         return None, [], None
@@ -238,7 +255,7 @@ def cube_pose_joint(img: np.ndarray, intr: C.Intrinsics, layout: dict, det=None,
 
 
 def cube_pose_fused(views: list[tuple[np.ndarray, C.Intrinsics, np.ndarray]], layout: dict, det=None,
-                    max_err: float = 2.0, depth_weight: float = 0.1):
+                    max_err: float = 2.0, depth_weight: float = 0.1, prior_R_world_cube: np.ndarray | None = None):
     """T_world_cube from several cameras, fused per camera instead of in one PnP.
 
     Each camera gives a pose from its own tags (cube_pose_joint). Orientation: the average
@@ -252,7 +269,8 @@ def cube_pose_fused(views: list[tuple[np.ndarray, C.Intrinsics, np.ndarray]], la
     det = det or detector()
     Rs, A, b, info = [], np.zeros((3, 3)), np.zeros(3), {}
     for vi, (img, intr, T_wc) in enumerate(views):
-        T_cc, used, err = cube_pose_joint(img, intr, layout, det, max_err)
+        prior = None if prior_R_world_cube is None else T_wc[:3, :3].T @ prior_R_world_cube
+        T_cc, used, err = cube_pose_joint(img, intr, layout, det, max_err, prior)
         if T_cc is None:
             continue
         T_w = T_wc @ T_cc
