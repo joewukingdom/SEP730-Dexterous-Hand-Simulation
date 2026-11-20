@@ -52,6 +52,21 @@ scene: scene_right_cube_orientation.xml
 bench:
   top_z: 0.092
 
+# HC-SR04 on the forearm tower (ESP32-S3 on COM4), located 2026-11-20 from the two
+# calibrated cameras with real2sim/ultrasonic/twin_check.py (no tape measure):
+#   transducer front faces: +y one triangulated from top (1045, 797) + side (1338, 515),
+#   -y one from top (1155, 782) at the same height; their spacing comes out 26.4 mm
+#   (HC-SR04: 26 mm). pos = midpoint of the two faces; dir = horizontal, perpendicular to
+#   the line joining them, towards the fingers (the board itself faces the palm/cube).
+# The real sensor answers with the nearest echo inside a cone, so the sim sensor is a cone
+# of rangefinders (us_0 = axis) and its reading is the minimum hit (camlib.ultrasonic_reading).
+ultrasonic:
+  pos_m: [0.1069, -0.0107, 0.2010]
+  dir: [0.965, -0.262, 0.0]
+  half_angle_deg: 15.0
+  rings: 3
+  n_az: 8
+
 # Board placement (default for every camera without its own), in the MuJoCo WORLD frame
 # of `scene`: board CENTRE position (m); the board starts flat with the print up and its
 # long (7-square) edge along world x, is tilted by tilt_deg about that edge (90 = print

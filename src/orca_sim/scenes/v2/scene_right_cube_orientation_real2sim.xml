@@ -16,7 +16,59 @@
             contype="0" conaffinity="0" group="3" mass="0.001"/>
     </body>
     <geom name="real2sim_bench" type="box" pos="0.1 0.0 0.0820" size="0.6 0.6 0.01" rgba="0.86 0.86 0.84 1" friction="1 0.005 0.0001"/>
+    <site name="us_0" pos="0.10690 -0.01070 0.20100" quat="0.56169769 0.56169769 0.42952964 0.42952964" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_1" pos="0.10690 -0.01070 0.20100" quat="0.54242725 0.54242725 0.45362173 0.45362173" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_2" pos="0.10690 -0.01070 0.20100" quat="0.56480120 0.53100275 0.43269143 0.46023235" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_3" pos="0.10690 -0.01070 0.20100" quat="0.58566398 0.53666217 0.41038500 0.44785664" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_4" pos="0.10690 -0.01070 0.20100" quat="0.59214092 0.55670642 0.39907864 0.42448009" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_5" pos="0.10690 -0.01070 0.20100" quat="0.57989889 0.57989889 0.40461991 0.40461991" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_6" pos="0.10690 -0.01070 0.20100" quat="0.55670642 0.59214092 0.42448009 0.39907864" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_7" pos="0.10690 -0.01070 0.20100" quat="0.53666217 0.58566398 0.44785664 0.41038500" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_8" pos="0.10690 -0.01070 0.20100" quat="0.53100275 0.56480120 0.46023235 0.43269143" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_9" pos="0.10690 -0.01070 0.20100" quat="0.52212428 0.52212428 0.47685033 0.47685033" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_10" pos="0.10690 -0.01070 0.20100" quat="0.56583005 0.50013758 0.43412958 0.49115197" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_11" pos="0.10690 -0.01070 0.20100" quat="0.60851544 0.51060508 0.39045917 0.46533112" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_12" pos="0.10690 -0.01070 0.20100" quat="0.62224989 0.55000712 0.36891498 0.41737152" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_13" pos="0.10690 -0.01070 0.20100" quat="0.59699623 0.59699623 0.37893997 0.37893997" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_14" pos="0.10690 -0.01070 0.20100" quat="0.55000712 0.62224989 0.41737152 0.36891498" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_15" pos="0.10690 -0.01070 0.20100" quat="0.51060508 0.60851544 0.46533112 0.39045917" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_16" pos="0.10690 -0.01070 0.20100" quat="0.50013758 0.56583005 0.49115197 0.43412958" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_17" pos="0.10690 -0.01070 0.20100" quat="0.50082742 0.50082742 0.49917121 0.49917121" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_18" pos="0.10690 -0.01070 0.20100" quat="0.56458662 0.46918437 0.43400424 0.52225310" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_19" pos="0.10690 -0.01070 0.20100" quat="0.63020854 0.48357602 0.36979008 0.48191982" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_20" pos="0.10690 -0.01070 0.20100" quat="0.65193864 0.54177588 0.33907601 0.40802251" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_21" pos="0.10690 -0.01070 0.20100" quat="0.61295715 0.61295715 0.35253869 0.35253869" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_22" pos="0.10690 -0.01070 0.20100" quat="0.54177588 0.65193864 0.40802251 0.33907601" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_23" pos="0.10690 -0.01070 0.20100" quat="0.48357602 0.63020854 0.48191982 0.36979008" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
+    <site name="us_24" pos="0.10690 -0.01070 0.20100" quat="0.46918437 0.56458662 0.52225310 0.43400424" size="0.002" rgba="1 0.5 0 0.5" group="4"/>
     <camera name="top" pos="0.196923 -0.013923 0.663558" xyaxes="-0.260288 -0.965394 -0.016269 0.964142 -0.258974 -0.057988" resolution="1920 1080" sensorsize="0.00576000 0.00324000" focalpixel="1960.109 1956.528" principalpixel="-21.975 13.949"/>
     <camera name="side" pos="0.189905 0.577692 0.140340" xyaxes="-0.997573 -0.069328 -0.006465 -0.014215 0.111883 0.993620" resolution="1920 1080" sensorsize="0.00576000 0.00324000" focalpixel="1935.714 1931.204" principalpixel="13.568 37.484"/>
   </worldbody>
+  <sensor>
+    <rangefinder name="us_0" site="us_0" cutoff="4.0"/>
+    <rangefinder name="us_1" site="us_1" cutoff="4.0"/>
+    <rangefinder name="us_2" site="us_2" cutoff="4.0"/>
+    <rangefinder name="us_3" site="us_3" cutoff="4.0"/>
+    <rangefinder name="us_4" site="us_4" cutoff="4.0"/>
+    <rangefinder name="us_5" site="us_5" cutoff="4.0"/>
+    <rangefinder name="us_6" site="us_6" cutoff="4.0"/>
+    <rangefinder name="us_7" site="us_7" cutoff="4.0"/>
+    <rangefinder name="us_8" site="us_8" cutoff="4.0"/>
+    <rangefinder name="us_9" site="us_9" cutoff="4.0"/>
+    <rangefinder name="us_10" site="us_10" cutoff="4.0"/>
+    <rangefinder name="us_11" site="us_11" cutoff="4.0"/>
+    <rangefinder name="us_12" site="us_12" cutoff="4.0"/>
+    <rangefinder name="us_13" site="us_13" cutoff="4.0"/>
+    <rangefinder name="us_14" site="us_14" cutoff="4.0"/>
+    <rangefinder name="us_15" site="us_15" cutoff="4.0"/>
+    <rangefinder name="us_16" site="us_16" cutoff="4.0"/>
+    <rangefinder name="us_17" site="us_17" cutoff="4.0"/>
+    <rangefinder name="us_18" site="us_18" cutoff="4.0"/>
+    <rangefinder name="us_19" site="us_19" cutoff="4.0"/>
+    <rangefinder name="us_20" site="us_20" cutoff="4.0"/>
+    <rangefinder name="us_21" site="us_21" cutoff="4.0"/>
+    <rangefinder name="us_22" site="us_22" cutoff="4.0"/>
+    <rangefinder name="us_23" site="us_23" cutoff="4.0"/>
+    <rangefinder name="us_24" site="us_24" cutoff="4.0"/>
+  </sensor>
 </mujoco>

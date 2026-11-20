@@ -266,6 +266,7 @@ def build_scene_xml(
     texture_file: str = BOARD_TEXTURE_NAME,
     extra_boards: list[np.ndarray] = (),
     bench: dict | None = None,
+    ultrasonic: dict | None = None,
 ) -> str:
     """Wrapper MJCF that includes `base_scene` (same directory) and adds the calibration
     board (visual only, geom group 3 so normal renders hide it) and the cameras.
@@ -281,6 +282,7 @@ def build_scene_xml(
         top = float(bench["top_z"])
         bench_xml = (f'\n    <geom name="real2sim_bench" type="box" pos="{cx} {cy} {top - 0.01:.4f}" '
                      f'size="{hx} {hy} 0.01" rgba="{rgba}" friction="1 0.005 0.0001"/>')
+    us_sites, us_sensors = ultrasonic_xml(ultrasonic) if ultrasonic else ("", "")
     max_w = max([c.width for c in cameras] + [640])
     max_h = max([c.height for c in cameras] + [480])
     cams = "\n    ".join(c.xml() for c in cameras)
@@ -309,11 +311,53 @@ def build_scene_xml(
     <body name="real2sim_board" pos="{' '.join(f'{v:.6f}' for v in T_world_board[:3, 3])}" quat="{_quat_xml(T_world_board[:3, :3])}"{mocap}>
       <geom name="real2sim_board" type="mesh" mesh="real2sim_board" material="real2sim_board"
             contype="0" conaffinity="0" group="3" mass="0.001"/>
-    </body>{extra}{bench_xml}
+    </body>{extra}{bench_xml}{us_sites}
     {cams}
-  </worldbody>
+  </worldbody>{us_sensors}
 </mujoco>
 """
+
+
+def ultrasonic_rays(half_angle_deg: float, rings: int = 3, n_az: int = 8) -> list[tuple[float, float]]:
+    """(polar, azimuth) angles of the rays of a cone: the axis plus `rings` rings of `n_az` rays."""
+    rays = [(0.0, 0.0)]
+    for k in range(1, rings + 1):
+        th = math.radians(half_angle_deg * k / rings)
+        rays += [(th, 2 * math.pi * j / n_az) for j in range(n_az)]
+    return rays
+
+
+def _frame_with_z(z: np.ndarray) -> np.ndarray:
+    z = np.asarray(z, float) / np.linalg.norm(z)
+    x = np.cross([0.0, 0.0, 1.0], z)
+    x = x / np.linalg.norm(x) if np.linalg.norm(x) > 1e-6 else np.array([1.0, 0.0, 0.0])
+    return np.column_stack([x, np.cross(z, x), z])
+
+
+def ultrasonic_xml(cfg: dict) -> tuple[str, str]:
+    """Sites + rangefinders for an HC-SR04-like sensor (rig.yaml `ultrasonic`).
+
+    The real sensor returns the echo of the nearest surface inside a cone (~15 deg half
+    angle), so it is modelled as a cone of rays `us_0..us_N` (us_0 = axis); the sim reading
+    is the minimum over the rays that hit something (see ultrasonic_reading)."""
+    pos = np.asarray(cfg["pos_m"], float)
+    F = _frame_with_z(np.asarray(cfg["dir"], float))
+    sites, sensors = [], []
+    for i, (th, ph) in enumerate(ultrasonic_rays(cfg.get("half_angle_deg", 15.0), cfg.get("rings", 3),
+                                                 cfg.get("n_az", 8))):
+        d = F @ np.array([math.sin(th) * math.cos(ph), math.sin(th) * math.sin(ph), math.cos(th)])
+        sites.append(f'\n    <site name="us_{i}" pos="{" ".join(f"{v:.5f}" for v in pos)}" '
+                     f'quat="{_quat_xml(_frame_with_z(d))}" size="0.002" rgba="1 0.5 0 0.5" group="4"/>')
+        sensors.append(f'\n    <rangefinder name="us_{i}" site="us_{i}" cutoff="4.0"/>')
+    return "".join(sites), "\n  <sensor>" + "".join(sensors) + "\n  </sensor>"
+
+
+def ultrasonic_reading(model, data) -> float | None:
+    """Sim HC-SR04 distance in m: nearest hit over the us_* rays (None = no echo)."""
+    vals = [data.sensor(f"us_{i}").data[0] for i in range(model.nsensor)
+            if model.sensor(i).name.startswith("us_")]
+    hits = [v for v in vals if v >= 0]
+    return min(hits) if hits else None
 
 
 def render_camera(model, data, cam_name: str, *, show_board: bool = True) -> np.ndarray:

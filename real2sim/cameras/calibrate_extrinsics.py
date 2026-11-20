@@ -163,7 +163,8 @@ def run(session: Path | None, rig: dict, *, cam_sessions: dict[str, Path] | None
         scene_name = scene_name or rig["scene"].replace(".xml", "_real2sim.xml")
         T_wb = C.T_world_boardcv(board_cfg, rig["board_in_world"])
         xml = C.build_scene_xml(rig["scene"], board_cfg, T_wb, cams, texture_file=texture_name,
-                                model_name=scene_name.removesuffix(".xml"), bench=rig.get("bench"))
+                                model_name=scene_name.removesuffix(".xml"), bench=rig.get("bench"),
+                                ultrasonic=rig.get("ultrasonic"))
         (C.SCENES_DIR / scene_name).write_text(xml)
         out["scene_file"] = str(C.SCENES_DIR / scene_name)
         if verbose:
@@ -180,7 +181,7 @@ def write_scene(rig: dict, cal: dict, *, scene_name: str | None = None,
     scene_name = scene_name or rig["scene"].replace(".xml", "_real2sim.xml")
     xml = C.build_scene_xml(rig["scene"], rig["board"], C.T_world_boardcv(rig["board"], rig["board_in_world"]), cams,
                             texture_file=texture_name, model_name=scene_name.removesuffix(".xml"),
-                            bench=rig.get("bench"))
+                            bench=rig.get("bench"), ultrasonic=rig.get("ultrasonic"))
     path = C.SCENES_DIR / scene_name
     path.write_text(xml)
     return path
