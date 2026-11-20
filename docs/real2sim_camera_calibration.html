@@ -389,6 +389,22 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li>修复后 8 秒测试：两个相机 30 fps、无丢帧；超声波每秒 10 个；78 个读数中 74 个两帧都在 25 ms 以内（中位数 8.9 ms），其余 4 个已标记。</li>
     <li>到达时间 ≠ 采集时间（相机曝光与 USB 延迟、FTDI 约 16 ms 缓冲），之后用一次同步测试测出各路固定延迟，用 <code>--lat-*-ms</code> 修正。</li>
   </ul>
+  <h3>AprilTag 方块</h3>
+  <p>训练好的 PPO 观测的是关节状态 + 方块红色面的世界方向 + 它离朝上还差多少，不看图像，所以真实部署只需要<b>方块的朝向</b>，不需要 YOLO。方块六个面贴 AprilTag 36h11（27 mm，按 35 mm 方块生成），只要求 id 0 贴在绿色面（对应 sim 的红色面），其余标签的实际位置由程序从 407 张"同时看到 ≥ 2 个标签"的照片里测出（id 1 在 id 0 对面，只能经由侧面标签间接相连）。</p>
+  <div class="tbl"><table>
+    <tr><th>标签</th><th>面</th><th>法向偏离</th><th>偏离面中心</th></tr>
+    <tr><td>0</td><td>+z（绿色面）</td><td class="num">0.0°（基准）</td><td class="num">1.8 mm</td></tr>
+    <tr><td>1</td><td>−z</td><td class="num">4.3°</td><td class="num">3.4 mm</td></tr>
+    <tr><td>2</td><td>−x</td><td class="num">0.8°</td><td class="num">1.9 mm</td></tr>
+    <tr><td>3</td><td>+x</td><td class="num">0.5°</td><td class="num">1.7 mm</td></tr>
+    <tr><td>4</td><td>−y</td><td class="num">0.3°</td><td class="num">1.8 mm</td></tr>
+    <tr><td>5</td><td>+y</td><td class="num">0.3°</td><td class="num">1.8 mm</td></tr>
+  </table></div>
+  <ul>
+    <li>同一帧里两个标签各自算出的方块姿态中位数相差 3.1 mm / 2.6°；改为所有可见标签角点一起做一次 PnP，重投影中位数 3.0 px，与逐标签平均的朝向相差中位数 0.9°。</li>
+    <li>放弃的尝试：交替优化标签布局与每帧姿态，误差从 3.5 px 发散到 23 px，已删除。</li>
+    <li>坑：OpenCV 5 的 <code>solvePnPRefineLM</code> 传入一维平移向量 <code>(3,)</code> 时结果翻转约 180°，必须用 <code>(3, 1)</code>。</li>
+  </ul>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 
