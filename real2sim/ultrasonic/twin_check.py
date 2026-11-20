@@ -156,10 +156,12 @@ def compare(args) -> None:
     d.qpos[j:j + 3] = centre
     d.qpos[j + 3:j + 7] = q
     mujoco.mj_forward(m, d)
-    sim = C.ultrasonic_reading(m, d)
+    raw = C.ultrasonic_reading(m, d)
+    sim = C.ultrasonic_reading(m, d, rig["ultrasonic"])
     rays = [m.sensor(i).name for i in range(m.nsensor) if m.sensor(i).name.startswith("us_")]
     print(f"sim sensor ({len(rays)} rays, {rig['ultrasonic']['half_angle_deg']} deg cone): "
-          f"{'no echo' if sim is None else f'{sim * 1000:.1f} mm'}  "
+          f"{'no echo' if sim is None else f'{sim * 1000:.1f} mm'} calibrated, "
+          f"{'no echo' if raw is None else f'{raw * 1000:.1f} mm'} geometric  "
           f"(sim cube edge {sim_edge * 1000:.0f} mm vs real {args.cube_mm:.0f} mm)")
     if args.real_port:
         vals = read_real(args.real_port, args.seconds)

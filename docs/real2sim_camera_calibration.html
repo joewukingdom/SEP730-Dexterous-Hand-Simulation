@@ -354,17 +354,25 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <figcaption><b>图 H · 距离实验</b>。红 = 探头前端面，蓝 = 方块近面，绿箭头 = 相机量出的距离。</figcaption>
   </figure>
   <div class="tbl"><table>
-    <tr><th>位置</th><th>相机（参考）</th><th>真实传感器</th><th>sim</th></tr>
-    <tr><td>1 靠近手腕</td><td class="num">4.6 mm</td><td class="num">20.0 mm（恒定）</td><td class="num">–</td></tr>
-    <tr><td>2 手掌中间</td><td class="num">27.0 mm</td><td class="num">33.0 mm</td><td class="num">23.9 mm</td></tr>
-    <tr><td>3 手掌远端</td><td class="num">61.4 mm</td><td class="num">61.0 mm</td><td class="num">57.8 mm</td></tr>
+    <tr><th>位置</th><th>方块所在</th><th>相机（参考）</th><th>真实</th><th>sim 几何</th><th>sim 标定后</th><th>sim − 真实</th></tr>
+    <tr><td>1</td><td>靠近手腕</td><td class="num">4.6</td><td class="num">20.0（恒定）</td><td class="num">5.3</td><td class="num">20.0</td><td class="num">0.0</td></tr>
+    <tr><td>2</td><td>手掌中间</td><td class="num">27.0</td><td class="num">33.0</td><td class="num">23.9</td><td class="num">26.8</td><td class="num">−6.2</td></tr>
+    <tr><td>4</td><td>约 4 cm</td><td class="num">42.2</td><td class="num">39.0</td><td class="num">40.0</td><td class="num">42.9</td><td class="num">+3.9</td></tr>
+    <tr><td>3</td><td>手掌远端</td><td class="num">61.4</td><td class="num">61.0</td><td class="num">57.8</td><td class="num">60.7</td><td class="num">−0.3</td></tr>
+    <tr><td>5</td><td>中指第二指节上</td><td class="num">77.1</td><td class="num">80.0</td><td class="num">74.4</td><td class="num">77.3</td><td class="num">−2.7</td></tr>
   </table></div>
+  <p style="font-size:13px;color:var(--muted)">单位 mm，按距离排序；位置编号是采集顺序。</p>
+  <figure>
+    <img src="figures/real2sim/ultrasonic_vs_camera.png" alt="传感器读数与相机参考值的散点图" tabindex="0" loading="lazy" style="max-width:640px">
+    <figcaption><b>图 I · 读数 vs 相机参考</b>。蓝圈 = 真实 HC-SR04，橙方块 = 标定后的 sim；灰色区域是真实传感器的盲区（读数卡在 20 mm），虚线为读数 = 相机。</figcaption>
+  </figure>
   <div class="note">
     <b>结论</b>
     <ul>
-      <li><b>真实传感器</b>：约 6 cm 处与相机一致（差 0.4 mm）；约 3 cm 处偏大约 6 mm；2 cm 以内进入盲区，读数卡在 20 mm。</li>
-      <li><b>sim</b>：比相机参考值稳定地短 3–4 mm，与相机标定约 5 mm 的误差预算一致。方块倾角用估计值或竖直、是否加入射角限制，结果差 &lt; 1 mm（两次的面都正对传感器）。sim 方块 36 mm，真实方块 35 mm。</li>
-      <li>数字孪生还要模拟真实传感器的盲区饱和和近距离正偏差；目前两个有效点，不足以拟合曲线。</li>
+      <li><b>真实传感器</b>（位置 2–5）：拟合 读数 = 0.97 × 相机 + 3.1 mm，残差约 ±4 mm，没有明显的固定偏差或比例误差；离散程度与相机参考值本身的误差相当。2 cm 以内是盲区，读数卡在 20 mm。</li>
+      <li><b>sim 几何距离</b>：比相机参考值稳定地短 <b>2.9 ± 0.6 mm</b>，是固定偏差：0.5 mm 来自 sim 方块（36 mm）比真实（35 mm）大，其余来自 top 与 side 相机之间的微小不一致。</li>
+      <li><b>标定后的 sim</b>：读数 = max(圆锥内最近命中 + 2.9 mm, 20 mm)（<code>rig.yaml</code> 的 <code>range_offset_m</code>、<code>min_range_m</code>）。与真实传感器：盲区一致；位置 2–5 平均绝对误差 3.3 mm，RMS 3.9 mm。偏移量用同样 4 个点标定（样本内），还需要新位置验证。</li>
+      <li>倾角用估计值或竖直、是否加入射角限制（&lt; 20°），结果差 &lt; 1 mm，因为这些位置的面都正对传感器。</li>
     </ul>
   </div>
   <div class="note warn">

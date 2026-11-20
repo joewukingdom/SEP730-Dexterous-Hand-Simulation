@@ -352,12 +352,21 @@ def ultrasonic_xml(cfg: dict) -> tuple[str, str]:
     return "".join(sites), "\n  <sensor>" + "".join(sensors) + "\n  </sensor>"
 
 
-def ultrasonic_reading(model, data) -> float | None:
-    """Sim HC-SR04 distance in m: nearest hit over the us_* rays (None = no echo)."""
+def ultrasonic_reading(model, data, cfg: dict | None = None) -> float | None:
+    """Sim HC-SR04 distance in m: nearest hit over the us_* rays (None = no echo).
+
+    With `cfg` (rig.yaml `ultrasonic`), the calibrated sensor behaviour is applied:
+    `range_offset_m` is added, and anything closer than `min_range_m` reads min_range_m
+    (the real sensor's dead zone: below ~2 cm it reports a constant 20 mm)."""
     vals = [data.sensor(f"us_{i}").data[0] for i in range(model.nsensor)
             if model.sensor(i).name.startswith("us_")]
     hits = [v for v in vals if v >= 0]
-    return min(hits) if hits else None
+    if not hits:
+        return None
+    d = min(hits)
+    if cfg:
+        d = max(d + cfg.get("range_offset_m", 0.0), cfg.get("min_range_m", 0.0))
+    return d
 
 
 def render_camera(model, data, cam_name: str, *, show_board: bool = True) -> np.ndarray:

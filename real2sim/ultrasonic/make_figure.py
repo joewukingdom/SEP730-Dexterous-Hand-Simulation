@@ -15,7 +15,8 @@ import twin_check as W
 
 C = W.C
 # (session, cube near-face pixel in the side image, sim reading mm or None)
-POSITIONS = [("pos1", 1322, None), ("pos2", 1245, 23.9), ("pos3", 1128, 57.8)]
+POSITIONS = [("pos1", 1322, 20.0), ("pos2", 1245, 26.8), ("pos4", 1193, 42.9), ("pos3", 1128, 60.7),
+             ("pos5", 1075, 77.3)]  # sim = calibrated reading
 TRANSDUCER_PX = (1338, 515)
 
 
@@ -29,7 +30,8 @@ def gap_mm(cams, edge_px: float) -> float:
 def main() -> None:
     cams = W.cameras()
     tiles = []
-    for i, (sess, edge, sim) in enumerate(POSITIONS, start=1):
+    for sess, edge, sim in POSITIONS:
+        i = sess.removeprefix("pos")
         folder = C.DATA_DIR / "us_check" / sess
         img = cv2.imread(str(folder / "side.png"))
         real = json.loads((folder / "real_reading.json").read_text())["median_mm"]
@@ -38,8 +40,8 @@ def main() -> None:
         cv2.line(img, (TRANSDUCER_PX[0], y - 70), (TRANSDUCER_PX[0], y + 70), (0, 0, 255), 3)
         cv2.line(img, (int(edge), y - 70), (int(edge), y + 70), (255, 0, 0), 3)
         cv2.arrowedLine(img, (TRANSDUCER_PX[0], y), (int(edge), y), (0, 160, 0), 3, tipLength=0.15)
-        crop = img[400:680, 980:1440].copy()
-        crop = cv2.resize(crop, (920, 560))
+        crop = img[400:680, 940:1440].copy()
+        crop = cv2.resize(crop, (800, 448))
         lines = [f"position {i}", f"camera  {cam:5.1f} mm", f"real    {real:5.1f} mm",
                  f"sim     {'  -  ' if sim is None else f'{sim:5.1f}'} mm"]
         for k, s in enumerate(lines):
@@ -47,7 +49,10 @@ def main() -> None:
             cv2.putText(crop, s, (16, 44 + 40 * k), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2)
         tiles.append(crop)
     out = C.REPO_ROOT / "docs" / "figures" / "real2sim" / "ultrasonic_positions.jpg"
-    cv2.imwrite(str(out), np.hstack(tiles), [cv2.IMWRITE_JPEG_QUALITY, 88])
+    blank = np.full_like(tiles[0], 255)
+    tiles += [blank] * (-len(tiles) % 3)
+    rows = [np.hstack(tiles[k:k + 3]) for k in range(0, len(tiles), 3)]
+    cv2.imwrite(str(out), np.vstack(rows), [cv2.IMWRITE_JPEG_QUALITY, 88])
     print("wrote", out)
 
 
