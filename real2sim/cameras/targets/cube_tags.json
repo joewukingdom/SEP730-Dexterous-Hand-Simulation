@@ -1,0 +1,13 @@
+{
+  "family": "DICT_APRILTAG_36h11",
+  "tag_mm": 28,
+  "face_mm": 36,
+  "faces": {
+    "0": "+z (red face)",
+    "1": "-z (opposite red)",
+    "2": "+x",
+    "3": "-x",
+    "4": "+y",
+    "5": "-y"
+  }
+}

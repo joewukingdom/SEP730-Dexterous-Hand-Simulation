@@ -222,3 +222,6 @@ MUJOCO_LOG.TXT
 
 # RL training outputs
 runs/
+
+# real2sim raw captures (go to the shared folder, not git)
+real2sim/data/
