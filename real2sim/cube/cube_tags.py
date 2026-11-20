@@ -30,7 +30,8 @@ sys.path.insert(0, str(HERE.parent / "cameras"))
 import camlib as C  # noqa: E402
 
 TAGS = json.loads((C.HERE / "targets" / "cube_tags.json").read_text())
-TAG_M = TAGS["tag_mm"] / 1000.0
+# the size the detector effectively sees (see effective_tag_note in cube_tags.json)
+TAG_M = TAGS.get("effective_tag_mm", TAGS["tag_mm"]) / 1000.0
 HALF = TAGS["face_mm"] / 2000.0
 LAYOUT = C.CALIB_DIR / "cube_tags_layout.json"
 CAP_DIR = C.DATA_DIR / "cube_tags"
@@ -234,6 +235,37 @@ def cube_pose_joint(img: np.ndarray, intr: C.Intrinsics, layout: dict, det=None,
     proj, _ = cv2.projectPoints(obj, rv, tv, intr.K_np, intr.dist_np)
     err = float(np.linalg.norm(proj.reshape(-1, 2) - img_pts, axis=1).mean())
     return C.make_T(cv2.Rodrigues(rv)[0], tv.ravel()), used, err
+
+
+def cube_pose_fused(views: list[tuple[np.ndarray, C.Intrinsics, np.ndarray]], layout: dict, det=None,
+                    max_err: float = 2.0, depth_weight: float = 0.1):
+    """T_world_cube from several cameras, fused per camera instead of in one PnP.
+
+    Each camera gives a pose from its own tags (cube_pose_joint). Orientation: the average
+    of the cameras' rotations. Position: weighted least squares in which each camera is
+    trusted fully across its image and only `depth_weight` along its viewing ray (depth from
+    a small tag's apparent size is its weakest direction). A single PnP over all views was
+    tried first (removed): with one 4-corner tag per camera it bent the orientation by ~15 deg
+    to absorb a ~10 mm disagreement between the cameras.
+    Returns (T_world_cube or None, {view index: (ids, reprojection px, T_world_cube from that view)}).
+    """
+    det = det or detector()
+    Rs, A, b, info = [], np.zeros((3, 3)), np.zeros(3), {}
+    for vi, (img, intr, T_wc) in enumerate(views):
+        T_cc, used, err = cube_pose_joint(img, intr, layout, det, max_err)
+        if T_cc is None:
+            continue
+        T_w = T_wc @ T_cc
+        ray = T_w[:3, 3] - T_wc[:3, 3]
+        ray /= np.linalg.norm(ray)
+        W = np.eye(3) - (1.0 - depth_weight) * np.outer(ray, ray)
+        A += W
+        b += W @ T_w[:3, 3]
+        Rs.append(T_w[:3, :3])
+        info[vi] = (used, err, T_w)
+    if not Rs:
+        return None, {}
+    return C.make_T(C.average_rotations(Rs), np.linalg.solve(A, b)), info
 
 
 def main() -> None:
