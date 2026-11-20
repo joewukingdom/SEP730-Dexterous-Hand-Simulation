@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import bisect
 import csv
+import json
 from pathlib import Path
 
 import sys
@@ -52,10 +53,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("name")
     ap.add_argument("--tol-ms", type=float, default=25.0, help="max |frame time - sample time| for ok=1")
-    ap.add_argument("--lat-top-ms", type=float, default=0.0)
-    ap.add_argument("--lat-side-ms", type=float, default=0.0)
-    ap.add_argument("--lat-us-ms", type=float, default=0.0)
+    lat_file = HERE / "latency.json"
+    lat = json.loads(lat_file.read_text()) if lat_file.exists() else {}
+    ap.add_argument("--lat-top-ms", type=float, default=lat.get("lat_top_ms", 0.0),
+                    help="default from latency.json (measured with latency.py --event)")
+    ap.add_argument("--lat-side-ms", type=float, default=lat.get("lat_side_ms", 0.0))
+    ap.add_argument("--lat-us-ms", type=float, default=lat.get("lat_us_ms", 0.0))
     args = ap.parse_args()
+    print(f"latencies (ms): ultrasonic {args.lat_us_ms:+.0f}, top {args.lat_top_ms:+.0f}, side {args.lat_side_ms:+.0f}")
 
     rec = Path(args.name) if Path(args.name).exists() else C.DATA_DIR / "recordings" / args.name
     top_t, top_f = load_frames(rec / "top_frames.csv", args.lat_top_ms / 1000)

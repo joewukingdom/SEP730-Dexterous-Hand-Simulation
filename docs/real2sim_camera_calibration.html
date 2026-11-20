@@ -387,8 +387,22 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li><code>align.py</code>：每个超声波读数配上时间最近的 top 帧和 side 帧，输出 <code>aligned.csv</code>（<code>t, us_mm, top_file, top_dt_ms, side_file, side_dt_ms, ok</code>）。<code>ok = 1</code> 表示两帧都在 25 ms 以内；不删行，只标记。</li>
     <li>发现并修复的错位：串口在相机启动（约 1 分钟）期间已打开，FTDI 驱动积压了 602 行旧读数且清不掉，录制开始时一次性到达、时间戳全错。修复后相机就绪才开串口，并丢弃积压；<code>align.py</code> 检测读数是否挤在一起。</li>
     <li>修复后 8 秒测试：两个相机 30 fps、无丢帧；超声波每秒 10 个；78 个读数中 74 个两帧都在 25 ms 以内（中位数 8.9 ms），其余 4 个已标记。</li>
-    <li>到达时间 ≠ 采集时间（相机曝光与 USB 延迟、FTDI 约 16 ms 缓冲），之后用一次同步测试测出各路固定延迟，用 <code>--lat-*-ms</code> 修正。</li>
+    <li>到达时间 ≠ 采集时间（相机曝光与 USB 延迟、FTDI 约 16 ms 缓冲）。测出的延迟写在 <code>real2sim/recording/latency.json</code>，<code>align.py</code> 默认使用。</li>
+    <li>录制有提示窗口：相机启动中 → 3 秒倒计时 → 红框"● 正在录制"，CSV 只保留倒计时之后的数据。</li>
   </ul>
+  <h3>延迟测试</h3>
+  <ol>
+    <li>sync01：方块没动（动作做在录制开始前）→ 加了提示窗口。</li>
+    <li>sync02：手推方块来回 5 次，互相关得 top +148 ms、side +86 ms，但相关峰在 ±100 ms 内几乎一样高，"动作起点"的比较也互相矛盾：慢斜坡 + 长平台 + 10 Hz 超声波 + 盲区异常值，测不准，作废。</li>
+    <li>sync03：<b>瞬间事件</b>。方块拿开，卡片快速插进传感器前方再抽出；相机只看光束区域的帧间变化（精度一帧）。</li>
+  </ol>
+  <div class="tbl"><table>
+    <tr><th>对比</th><th>中位数</th><th>MAD</th><th>事件数</th></tr>
+    <tr><td>top − 超声波</td><td class="num">+9 ms</td><td class="num">8 ms</td><td class="num">6</td></tr>
+    <tr><td>side − 超声波</td><td class="num">−27 ms</td><td class="num">22 ms</td><td class="num">6</td></tr>
+    <tr><td>side − top</td><td class="num">−49 ms</td><td class="num">14 ms</td><td class="num">5</td></tr>
+  </table></div>
+  <p>三路到达时间本来就基本对齐（约一帧以内）。超声波约 100 ms 才采样一次，事件平均晚约 50 ms 出现在读数里，这部分随机、无法用固定偏移修正，是时间精度的上限（约 ±50 ms）。对齐 sync03：197 个读数中 190 个两帧都在 25 ms 以内，中位数 8 ms。</p>
   <h3>AprilTag 方块</h3>
   <p>训练好的 PPO 观测的是关节状态 + 方块红色面的世界方向 + 它离朝上还差多少，不看图像，所以真实部署只需要<b>方块的朝向</b>，不需要 YOLO。方块六个面贴 AprilTag 36h11（27 mm，按 35 mm 方块生成），只要求 id 0 贴在绿色面（对应 sim 的红色面），其余标签的实际位置由程序从 407 张"同时看到 ≥ 2 个标签"的照片里测出（id 1 在 id 0 对面，只能经由侧面标签间接相连）。</p>
   <div class="tbl"><table>

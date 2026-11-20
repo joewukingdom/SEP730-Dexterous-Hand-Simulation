@@ -1,0 +1,12 @@
+{
+  "lat_us_ms": 0,
+  "lat_top_ms": 9,
+  "lat_side_ms": -27,
+  "source": "sync03 (2026-11-20): card pushed into / pulled out of the beam, cube removed; latency.py --event",
+  "detail": {
+    "top_minus_ultrasonic_ms": {"median": 9, "mad": 8, "events": 6},
+    "side_minus_ultrasonic_ms": {"median": -27, "mad": 22, "events": 6},
+    "side_minus_top_ms": {"median": -49, "mad": 14, "events": 5}
+  },
+  "note": "Relative to the ultrasonic stream (arrival times). The ultrasonic itself samples every ~100 ms, so a physical event shows up 0-100 ms later in it; that part is random per reading and cannot be removed with a constant offset. An earlier test pushing the cube by hand (sync02) gave 86-148 ms with very flat correlation peaks and inconsistent onsets: slow ramps and long plateaus do not pin down timing."
+}
