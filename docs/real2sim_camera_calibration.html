@@ -444,6 +444,32 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li>阈值未被确定：倾斜阶段集中在 21–25°，能测到的阶段 ≤ 20°；θ = 18° / 20° / 22° 时一致率 86% / 88% / 50%，需要覆盖更多角度的数据。</li>
     <li>距离偏差 +10 mm：方块位置来自两相机融合，x 方向约 10 mm 系统偏差（两相机之间 5–10 mm 的不一致）；直接用 side 画面测距时误差在 ±4 mm 内。</li>
   </ul>
+  <h3>入射角阈值（angle01 / angle02）</h3>
+  <p>方块放在手掌上，用手捏住远离传感器的一侧，绕竖直方向在 ±45° 之间慢慢来回转，同步录 60 秒。angle01 作废：方块约 2 cm、大部分读数是盲区饱和值 17 / 20 mm（分析现在自动排除 &lt; 25 mm 的读数）。angle02：方块约 7 cm，真实读数中位数 74 mm。</p>
+  <div class="tbl"><table>
+    <tr><th>正对面与光束夹角</th><th>真实测到方块的比例</th></tr>
+    <tr><td>10–20°</td><td class="num">83%</td></tr>
+    <tr><td>20–25°</td><td class="num">71%</td></tr>
+    <tr><td>25–30°</td><td class="num">39%</td></tr>
+    <tr><td>35–40°</td><td class="num">4%</td></tr>
+  </table></div>
+  <figure>
+    <img src="figures/real2sim/angle02_timeline.png" alt="angle02 时间线" tabindex="0" loading="lazy">
+    <figcaption><b>图 K · angle02</b>。入射角超过阈值时真实读到远处，入射角模型判为无回波，最近距离模型仍以为测到方块。</figcaption>
+  </figure>
+  <figure>
+    <img src="figures/real2sim/incidence_angle02.png" alt="入射角与回波" tabindex="0" loading="lazy">
+    <figcaption><b>图 L</b>。左：各角度区间真实测到方块的比例；右："夹角 ≤ θ 才有回波"规则与真实的一致率。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <tr><th>sim 射线阈值</th><th>run01（约 4 cm）</th><th>angle02（约 7 cm）</th><th>合计</th></tr>
+    <tr><td>15°</td><td class="num">94%</td><td class="num">63%</td><td class="num">72%</td></tr>
+    <tr><td>20°</td><td class="num">95%</td><td class="num">75%</td><td class="num">81%</td></tr>
+    <tr><td><b>25°</b></td><td class="num">90%</td><td class="num"><b>88%</b></td><td class="num"><b>88%</b></td></tr>
+    <tr><td>30°</td><td class="num">90%</td><td class="num">87%</td><td class="num">88%</td></tr>
+    <tr><td>不限制（最近距离）</td><td class="num">36%</td><td class="num">51%</td><td class="num">46%</td></tr>
+  </table></div>
+  <p>采用 <b>25°</b>（<code>rig.yaml</code> 的 <code>ultrasonic.max_incidence_deg</code>），样本内选出，需新数据验证。重新生成后：run01 一致 91%，angle02 一致 88%；都测到时 angle02 sim − 真实中位数 −0.1 mm（MAE 7.3 mm），run01 为 +9.8 mm（靠近手腕处两相机融合偏差更明显）。</p>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 

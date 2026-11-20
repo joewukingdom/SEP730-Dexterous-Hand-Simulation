@@ -13,8 +13,8 @@ Columns of dataset.csv:
   green_up_deg        angle between the green face (sim red face) normal and world up
   face_incidence_deg  angle between the ultrasonic beam and the cube face that faces it
   sim_nearest_mm      sim: nearest hit in the 15 deg cone (calibrated offset / dead zone)
-  sim_specular_mm     sim: same, but a ray only echoes if it meets the face within 20 deg
-                      of its normal (empty = no echo)
+  sim_specular_mm     sim: same, but a ray only echoes if it meets the face within
+                      rig.yaml ultrasonic.max_incidence_deg (25) of its normal (empty = no echo)
   real_sees_cube, sim_nearest_sees_cube, sim_specular_sees_cube     reading <= 150 mm
 The sim rays only see the cube (the sim hand is in its default pose, not the real one).
 """
@@ -94,7 +94,7 @@ def main() -> None:
             d.qpos[j + 3:j + 7] = q
             mujoco.mj_forward(m, d)
             near = C.ultrasonic_reading_specular(m, d, us_cfg, 90.0, hand_bodies)
-            spec = C.ultrasonic_reading_specular(m, d, us_cfg, 20.0, hand_bodies)
+            spec = C.ultrasonic_reading_specular(m, d, us_cfg, us_cfg.get("max_incidence_deg", 25.0), hand_bodies)
             row.update({
                 "cube_x": f"{T[0, 3]:.4f}", "cube_y": f"{T[1, 3]:.4f}", "cube_z": f"{T[2, 3]:.4f}",
                 "cube_qw": f"{q[0]:.4f}", "cube_qx": f"{q[1]:.4f}", "cube_qy": f"{q[2]:.4f}", "cube_qz": f"{q[3]:.4f}",
@@ -154,15 +154,16 @@ def main() -> None:
     fig.patch.set_facecolor(SURF)
     a1.plot(tt, series("us_mm", 160), color=BLUE, lw=2, label="real HC-SR04")
     a1.plot(tt, series("sim_nearest_mm", 160), color=ORANGE, lw=1.4, label="sim, nearest in cone")
-    a1.plot(tt, series("sim_specular_mm", 160), color=AQUA, lw=1.4, ls=(0, (4, 2)), label="sim, specular (<= 20 deg)")
+    a1.plot(tt, series("sim_specular_mm", 160), color=AQUA, lw=1.4, ls=(0, (4, 2)), label=f"sim, specular (<= {us_cfg.get('max_incidence_deg', 25):g} deg)")
     a1.axhline(SEES_MM, color=INK2, lw=0.8, ls=":")
     a1.text(tt[-1], SEES_MM + 2, "readings above 150 mm: not the cube (shown at 160)", ha="right", va="bottom",
             fontsize=8, color=INK2)
     a1.set_ylabel("distance (mm)", color=INK, fontsize=9)
     a1.legend(frameon=False, fontsize=8, loc="center left")
     a2.plot(tt, series("face_incidence_deg"), color=INK, lw=1.4)
-    a2.axhline(20, color=INK2, lw=0.8, ls=":")
-    a2.text(tt[0], 22, "20 deg", fontsize=8, color=INK2)
+    th = us_cfg.get("max_incidence_deg", 25)
+    a2.axhline(th, color=INK2, lw=0.8, ls=":")
+    a2.text(tt[0], th + 1, f"{th:g} deg", fontsize=8, color=INK2)
     a2.set_ylabel("beam vs facing\ncube face (deg)", color=INK, fontsize=9)
     a2.set_xlabel("time (s)", color=INK, fontsize=9)
     for ax in (a1, a2):
