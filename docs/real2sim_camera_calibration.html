@@ -94,7 +94,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li><a href="#side">side 外参</a></li>
     <li><a href="#bench">sim 桌面与"残影"</a></li>
     <li><a href="#result">最终结果与误差预算</a></li>
-    <li><a href="#ultra">超声波：初步观察</a></li>
+    <li><a href="#ultra">超声波数字孪生</a></li>
     <li><a href="#repro">复现命令</a></li>
   </ol>
 </nav>
@@ -339,17 +339,39 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 </section>
 
 <section id="ultra">
-  <h2><span class="no">09</span>超声波：初步观察</h2>
-  <p>HC-SR04 由 ESP32-S3 驱动（<code>ORCA Ultra Sonic/src/main.cpp</code>，TRIG 10 / ECHO 18，每 100 ms 测一次，输出 <code>Distance: xx.x cm</code>），接在 COM4（FTDI）上；手的舵机适配器在 COM3。<code>read_ultrasonic.py</code> 改为通过"监听哪个口在输出距离"来找端口，不向任何端口写数据。</p>
+  <h2><span class="no">09</span>超声波数字孪生</h2>
+  <p>HC-SR04 由 ESP32-S3 驱动（<code>ORCA Ultra Sonic/src/main.cpp</code>，TRIG 10 / ECHO 18，约 10 Hz，输出 <code>Distance: xx.x cm</code>），接在 COM4（FTDI）上；手的舵机适配器在 COM3。<code>read_ultrasonic.py</code> 通过"监听哪个口在输出距离"找端口，不向任何端口写数据。传感器装在透明支架上，探头高度对准方块中部，正对方块的近面。</p>
+  <h3>传感器位置：用两个相机定位</h3>
+  <ul>
+    <li>+y 一侧的探头在两个相机里都看得到（用 top 视线在 side 图像里画极线确认对应点），三角测量；−y 探头用 top 视线与同一高度求交。</li>
+    <li>两探头间距算出 <b>26.4 mm</b>（规格 26 mm）。中心 (0.1069, −0.0107, 0.2010) m，朝向水平、偏 −15.2°，指向手指。</li>
+    <li>sim 传感器：25 条 rangefinder 组成 15° 半角圆锥，读数取最近命中。单条射线会从方块旁擦过、完全打不到；7.5° 圆锥读 41.7 mm；15° 读 28.4 mm。</li>
+  </ul>
+  <h3>距离实验（方块面与传感器平行）</h3>
+  <p>每个位置同时拍两个相机并读传感器。"相机"是在 side 画面里、传感器高度上量出的探头前端面到方块近面的水平距离，作为参考值。</p>
+  <figure>
+    <img src="figures/real2sim/ultrasonic_positions.jpg" alt="超声波距离实验的三个位置" tabindex="0" loading="lazy">
+    <figcaption><b>图 H · 距离实验</b>。红 = 探头前端面，蓝 = 方块近面，绿箭头 = 相机量出的距离。</figcaption>
+  </figure>
   <div class="tbl"><table>
-    <tr><th>10 秒实测</th><th>结果</th></tr>
-    <tr><td>频率</td><td class="num">9.8 Hz（100 个读数）</td></tr>
-    <tr><td>距离</td><td class="num">全部 26.0 mm，标准差 0</td></tr>
+    <tr><th>位置</th><th>相机（参考）</th><th>真实传感器</th><th>sim</th></tr>
+    <tr><td>1 靠近手腕</td><td class="num">4.6 mm</td><td class="num">20.0 mm（恒定）</td><td class="num">–</td></tr>
+    <tr><td>2 手掌中间</td><td class="num">27.0 mm</td><td class="num">33.0 mm</td><td class="num">23.9 mm</td></tr>
+    <tr><td>3 手掌远端</td><td class="num">61.4 mm</td><td class="num">61.0 mm</td><td class="num">57.8 mm</td></tr>
   </table></div>
-  <div class="note warn">
-    <b>传感器现在测到的是手自己</b>
-    <p>从 top 画面看，传感器平放在前臂塔上、两个探头朝向手掌根部，前方 2–3 cm 就是手掌，所以读数恒为 26 mm，接近 HC-SR04 约 2 cm 的最小量程。按现在的安装方式，它看不到手掌上的方块。下一步需要先确定传感器要测什么，再决定安装位置，然后在 sim 里按同样的位置加一个测距传感器做对比。</p>
+  <div class="note">
+    <b>结论</b>
+    <ul>
+      <li><b>真实传感器</b>：约 6 cm 处与相机一致（差 0.4 mm）；约 3 cm 处偏大约 6 mm；2 cm 以内进入盲区，读数卡在 20 mm。</li>
+      <li><b>sim</b>：比相机参考值稳定地短 3–4 mm，与相机标定约 5 mm 的误差预算一致。方块倾角用估计值或竖直、是否加入射角限制，结果差 &lt; 1 mm（两次的面都正对传感器）。sim 方块 36 mm，真实方块 35 mm。</li>
+      <li>数字孪生还要模拟真实传感器的盲区饱和和近距离正偏差；目前两个有效点，不足以拟合曲线。</li>
+    </ul>
   </div>
+  <div class="note warn">
+    <b>镜面反射</b>
+    <p>用户观察到：方块面不平行于传感器（例如转 45°）时读数会变。这是超声波的镜面反射，斜面把声波反射到别处。"圆锥内最近距离"模型不包含这一点。下一步用贴 AprilTag 的方块，在手指拨动方块的真实过程中逐帧采集方块姿态和读数，加入入射角模型后对比。</p>
+  </div>
+  <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 
 <section id="repro">
