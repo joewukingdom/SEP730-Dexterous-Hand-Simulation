@@ -174,6 +174,14 @@ def compare(name: str) -> None:
             r.disable_segmentation_rendering()
             mask = np.isin(seg, list(hand_geoms)).astype(np.uint8)
             cnts, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+            # agreement score: median distance (px) from the sim outline to the nearest real image
+            # edge, on the outer outline of the fingers only (below the wrist the hand is fixed)
+            edges = cv2.Canny(cv2.GaussianBlur(cv2.cvtColor(und, cv2.COLOR_BGR2GRAY), (5, 5), 0), 40, 120)
+            dist = cv2.distanceTransform(255 - edges, cv2.DIST_L2, 5)
+            ext, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            pts = np.vstack([c.reshape(-1, 2) for c in ext])
+            score = float(np.median(dist[pts[:, 1], pts[:, 0]]))
+            report.append((p["pose"], cam, score))
             vis = und.copy()
             cv2.drawContours(vis, cnts, -1, (255, 0, 255), 3)
             ys, xs = np.nonzero(mask)
@@ -181,8 +189,9 @@ def compare(name: str) -> None:
             y0, y1 = max(0, ys.min() - 120), min(1080, ys.max() + 120)
             crop = vis[y0:y1, x0:x1]
             crop = cv2.resize(crop, (int(540 * crop.shape[1] / crop.shape[0]), 540))
-            cv2.putText(crop, f"{p['pose']} - {cam}", (14, 44), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 7)
-            cv2.putText(crop, f"{p['pose']} - {cam}", (14, 44), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (255, 255, 255), 2)
+            label = f"{p['pose']} - {cam}  {score:.1f}px"
+            cv2.putText(crop, label, (14, 44), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 7)
+            cv2.putText(crop, label, (14, 44), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (255, 255, 255), 2)
             tiles.append(crop)
         w = sum(t.shape[1] for t in tiles)
         rows.append(cv2.resize(np.hstack(tiles), (1800, int(540 * 1800 / w))))
@@ -193,6 +202,11 @@ def compare(name: str) -> None:
     cv2.imwrite(str(fig), cv2.resize(sheet, (1500, int(sheet.shape[0] * 1500 / sheet.shape[1]))),
                 [cv2.IMWRITE_JPEG_QUALITY, 85])
     print(f"wrote {out} and {fig}")
+    print("median distance sim outline -> real edges (px, lower = closer):")
+    for pose_name, cam, sc in report:
+        print(f"  {pose_name:12s} {cam:5s} {sc:5.1f}")
+    (rec / "pose_check_scores.json").write_text(json.dumps(
+        {"replay_offset_s": off, "scores_px": [{"pose": a, "cam": b, "px": c} for a, b, c in report]}, indent=2))
 
 
 def main() -> None:

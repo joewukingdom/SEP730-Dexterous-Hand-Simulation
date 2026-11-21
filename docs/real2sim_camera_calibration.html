@@ -482,6 +482,22 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li><b>side</b>："全 0°"姿态下 sim 手腕取 0° 最吻合（8.0 px），取指令值 −9.6° 更差（9.3 px）：手腕约 5–10° 偏差。</li>
     <li>四指上下弯曲大致对得上；拇指偏差较大。真实关节标定（orca_core <code>calibration.yaml</code>）最后更新于 2026-09-08；<code>orca_teleop-main</code> 里的是遥操作双目相机标定和重定向参数，不是关节标定。</li>
   </ul>
+  <p><b>重新标定后（posecheck03）</b>：用 <code>calibrate.py</code> 重新标定了四指和拇指（手腕跳过），用同一个姿态检查文件再录。评分 = sim 手外轮廓到真实画面边缘的中位距离：</p>
+  <div class="tbl"><table>
+    <tr><th>姿态</th><th>top 前 → 后 (px)</th><th>side 前 → 后 (px)</th></tr>
+    <tr><td>中立位</td><td class="num">6.4 → 7.0</td><td class="num">9.0 → 8.4</td></tr>
+    <tr><td>全 0°</td><td class="num">7.0 → 6.2</td><td class="num">9.3 → 8.2</td></tr>
+    <tr><td>四指 45°</td><td class="num">9.2 → 8.6</td><td class="num">8.9 → 8.6</td></tr>
+    <tr><td>拇指弯曲</td><td class="num">7.0 → 7.0</td><td class="num">7.0 → 7.0</td></tr>
+    <tr><td>张开</td><td class="num">6.4 → 6.0</td><td class="num">10.2 → 9.2</td></tr>
+    <tr><td>中立位（结束）</td><td class="num">6.6 → 6.4</td><td class="num">8.4 → 8.0</td></tr>
+    <tr><td><b>平均</b></td><td class="num"><b>7.1 → 6.9</b></td><td class="num"><b>8.8 → 8.2</b></td></tr>
+  </table></div>
+  <figure>
+    <img src="figures/real2sim/posecheck03_pose_check.jpg" alt="重新标定后的关节姿态检查" tabindex="0" loading="lazy">
+    <figcaption><b>图 N · 重新标定后</b>。</figcaption>
+  </figure>
+  <p>只有小幅改善（top −3%，side −7%）。残余偏差集中在<b>小指和无名指</b>：真实的这两根手指比 sim 更向外偏，食指、中指基本对齐；可能是外展关节零点偏差或模型与实物的几何差异。评分包含背景边缘，只反映大致趋势。</p>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 
