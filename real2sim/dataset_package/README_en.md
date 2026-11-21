@@ -61,9 +61,9 @@ MAE 5.9 mm); below 20 mm is the sensor's dead zone.
 
 - The ultrasonic sensor only rests on the palm base: replays that moved the wrist (run03, run04,
   run06) have an invalid ultrasonic twin.
-- Joint mapping: run08 uses the mapping after the hand recalibration (`joint_map.py`: ring/pinky
-  abduction sim = core + (-10 / -14 deg)); the `dataset_twin.csv` of run05-run07 was computed with
-  the mapping of that time (sign -1, -20 / -27 deg).
+- Joint mapping: run08 uses the mapping measured on fullcheck01 (`joint_map.py`: ring/pinky
+  abduction sim = core + (-10 / -14 deg)); the replays and `dataset_twin.csv` of run03-run07 used the
+  abdcheck03 mapping (sign -1, -20 / -27 deg), whose ring/pinky direction is probably wrong.
 - Replays are open loop; the policy does not see the real cube.
 
 ## Runs
@@ -79,4 +79,4 @@ MAE 5.9 mm); below 20 mm is the sensor's dead zone.
 | run05 | wrist locked, green face to the pinky; cube 1.5-2 cm towards the wrist from the training position, fingers did not reach it | 482 | 482 |
 | run06 | wrist -15..+15 deg; sensor follows the wrist (corr 0.86/0.88), ultrasonic twin invalid | 483 | 483 |
 | run07 | wrist locked, green face to the pinky, cube at the training position; falls off the fingertip side at ~7 s. Valid | 459 | 89 |
-| run08 | new mapping after the hand recalibration, wrist locked, green face to the pinky; cube turned 124 deg, then rolls off the pinky side, caught far below by a human hand (no contact). Valid | 553 | 127 |
+| run08 | mapping from fullcheck01, wrist locked, green face to the pinky; cube turned 124 deg, then rolls off the pinky side, caught far below by a human hand (no contact). Valid | 553 | 127 |

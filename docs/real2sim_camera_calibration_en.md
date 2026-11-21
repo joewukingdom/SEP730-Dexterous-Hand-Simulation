@@ -27,7 +27,7 @@ Deliverables:
 2. An ultrasonic digital twin: an HC-SR04 located with the cameras (not a ruler) and modelled as a 15° cone of 25 rangefinder rays, a calibrated range offset (+2.9 mm), a 20 mm dead zone and a specular incidence limit (25°). Static distance error ±4 mm, held-out error +3.9 mm (Section 8.3); with the cube still on the palm sim − real median +0.7 mm, MAE 5.9 mm (Section 8.15).
 3. A synchronized recorder (two cameras + ultrasonic on one host clock, ≤ 1 frame skew after measured latency offsets) and an AprilTag cube for per-frame 6-DoF cube pose (≈ 5–10 mm, 3–5°) (Sections 8.4–8.5).
 4. A full digital twin of policy replays: the sim hand follows the exact commanded joint angles (time-logged replay), the sim cube follows the camera pose, and the sim ultrasonic is compared with the real one sample by sample, including which body the echo comes from (Sections 8.9–8.17).
-5. Joint-level real2sim checks of the hand from the camera overlays, which found sign and zero errors in the ring/pinky abduction mapping, and that a hand recalibration changes them again (Sections 8.8, 8.16).
+5. Joint-level real2sim checks of the hand from the camera overlays, which found the ring/pinky abduction mapping; a check without a replay time log gave the opposite answer (Sections 8.8, 8.16).
 
 **Key numbers**
 
@@ -50,7 +50,7 @@ Deliverables:
 - AprilTag corners are detected about 2.8% inside the printed square at 90–130 px tag size; using an effective tag size (26.25 mm instead of 27 mm) cut the disagreement between the two cameras from 23.5 to 10 mm (Section 8.5).
 - The real ultrasonic echo depends on the incidence angle; a nearest-hit cone model gets echo/no-echo right only 36–51% of the time, an incidence limit raises it to 88–95% (Sections 8.6–8.7). The best limit grows with distance, consistent with the separate transmitter and receiver of the HC-SR04 (Section 8.11).
 - The sensor only rests on the palm base and moves with the wrist (correlation 0.86 / 0.88), so the ultrasonic twin is only valid with the wrist locked (Section 8.12).
-- The ring and pinky abduction joints ran opposite to the sim and had zero offsets of 20–27°; after the user re-ran the orca_core calibration they ran the sim's way again with offsets of 10–14°. Joint mapping must be re-checked after every hand calibration (Sections 8.8, 8.16).
+- Ring and pinky abduction: abdcheck01–03 (replay start guessed from image motion) said "opposite to the sim, zero offsets 20–27°"; fullcheck01 (aligned exactly by the replay time log) says "same direction as the sim, offsets 10–14°", with the hand calibration file unchanged in between. Joint checks need exact timing (Sections 8.8, 8.16).
 - Open-loop replay of the sim policy on the real hand does not reproduce the manipulation (the cube is turned but always dropped): the policy cannot react to the real cube, its motion is slowed 12× for safety, and joint ranges are clamped (Sections 8.8, 8.17).
 
 **Limitations**
@@ -523,7 +523,7 @@ The cube on the palm is held by its far side and slowly turned about the vertica
 ![Fig. Q: abdcheck03. Ring and pinky outlines: blue = old mapping, magenta = corrected](figures/real2sim/abdcheck03_abd_fix.jpg)
 
 - The corrected outlines fit the real fingers in "all 0°", pinky sim 0° etc.; the old mapping predicted an almost horizontal pinky, the real one was nearly upright.
-- Offsets estimated on abdcheck01 held on the independent abdcheck03. (This mapping was later invalidated by another hand calibration, see 8.16.)
+- Offsets estimated on abdcheck01 held on the independent abdcheck03. (This mapping was later contradicted by the exactly aligned fullcheck01, see 8.16.)
 
 ### 8.9 run03: wrist −10…+10°, and aligning the full twin
 
@@ -623,16 +623,18 @@ With the green face to the pinky the fingers act on the cube most, and it is the
 
 ![Fig. X: static01 timeline](figures/real2sim/static01_timeline.png)
 
-### 8.16 Full-hand joint check (fullcheck01) and the mapping after recalibration
+### 8.16 Full-hand joint check (fullcheck01) and the new mapping
 
-- The user **re-ran the orca_core calibration after abdcheck03**. `pose_check.py make full`: every finger joint alone at two angles, others 0, back to 0 after each finger; 40 poses held 3 s, 3.5 s transitions, max 36°/s, 256.5 s. Replayed with `replay_logged.py` (log fullcheck01), exactly aligned.
+- `pose_check.py make full`: every finger joint alone at two angles, others 0, back to 0 after each finger; 40 poses held 3 s, 3.5 s transitions, max 36°/s, 256.5 s. Replayed with `replay_logged.py` (log fullcheck01), exactly aligned.
 - The edge score is 6–8 px for every pose and separates nothing; the automatic fit is fooled by neighbouring fingers and side-view occlusion. So `finger_zoom.py` makes close-ups per finger (only the tested finger's sim outline) for judging by eye.
 - Results:
   - Thumb (4 joints), index abduction, finger flexion (mcp/pip): correct direction, magnitude within ≈ 10° by eye. The thumb is not reversed.
-  - **Ring and pinky abduction now run opposite to the abdcheck03 correction**: a negative command spreads outwards, positive pulls in; the pinky's zero is spread ≈ 35° (≈ 60° in abdcheck03). The calibration changed the direction and zero of these two joints.
+  - **Ring and pinky abduction run opposite to the abdcheck03 correction**: a negative command spreads outwards, positive pulls in; the pinky's zero is spread ≈ 35° (≈ 60° in the abdcheck03 frames).
+  - Cause check: the hand calibration file `calibration.yaml` changed only once that day, at 19:14 (before posecheck03), and not after abdcheck01–03 (19:24–19:44); the user remembered recalibrating again, but the file did not change. abdcheck01–03 had no replay time log, their start was guessed from image motion; a guess off by one pose (6.5 s) swaps the −20° and +20° frames, which looks exactly like a reversed direction. The other possibility is a physical change of the hand (tendons or servos) in between. Re-scoring abdcheck with the current mapping cannot separate the two (edge scores are unreliable and abdcheck03 did not cover all poses). **fullcheck01, aligned exactly, is taken as correct.**
+  - Consequence: run03–run07 used the abdcheck03 mapping (sign −1), so their ring/pinky commands were probably reversed; run08 uses the fullcheck01 mapping and the fingers act on the cube much more (8.17).
 - New mapping (`joint_map.py`): sim = core + offset, ring_abd −10°, pinky_abd −14° (one-parameter fit + visual check; the pinky fits in all three poses, the ring at ±20° and a few degrees out at zero). Old values (sign −1, −20° / −27°) kept in a comment.
 
-![Fig. Y: top: abdcheck03 (before recalibration); middle, bottom: fullcheck01 pinky and ring at 0 / −20 / +20°](figures/real2sim/fullcheck01_ring_pinky_vs_abdcheck03.jpg)
+![Fig. Y: top: abdcheck03; middle, bottom: fullcheck01 pinky and ring at 0 / −20 / +20°](figures/real2sim/fullcheck01_ring_pinky_vs_abdcheck03.jpg)
 
 ### 8.17 run08: new mapping, green face to the pinky, wrist locked
 
@@ -660,7 +662,7 @@ With the green face to the pinky the fingers act on the cube most, and it is the
 
 - A camera or serial port can be opened by one program at a time; an open preview window or serial monitor blocks the recorder.
 - Lock the wrist: the ultrasonic sensor only rests on the palm base and moves with the wrist, which invalidates the ultrasonic twin (8.12).
-- After any hand calibration, redo the joint check (8.16): calibration can change joint directions and zeros.
+- Joint checks must be aligned exactly with `replay_logged.py` (8.16); redo them after any hand calibration.
 - Put the cube at the sim training position (x ≈ 0.17 m) before a replay, otherwise the fingers do not reach it (run05).
 - Run real2sim scripts from the repo folder and replays from the orca folder (each command below starts with its `cd`).
 

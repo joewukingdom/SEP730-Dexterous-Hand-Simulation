@@ -142,7 +142,7 @@ def solve(args) -> None:
     intr = C.Intrinsics.load(C.intrinsics_path(args.cam))
     det = detector()
     rel: dict[tuple[int, int], list[np.ndarray]] = {}
-    files = sorted((CAP_DIR / args.cam).glob("*.png"))
+    files = sorted((CAP_DIR / args.cam).glob("*.png")) or sorted((CAP_DIR / args.cam).glob("*.jpg"))  # git: JPEG copies
     for f in files:
         poses = {i: T for i, (T, e) in tag_poses(cv2.imread(str(f)), intr, det).items() if e < args.max_err}
         for a in poses:

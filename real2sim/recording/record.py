@@ -142,7 +142,7 @@ class UltrasonicStream(threading.Thread):
         self.ser.close()
 
 
-WIN = "record"
+WIN = "ORCA hand - camera + ultrasonic recorder"
 
 
 def _font(size: int):
@@ -217,15 +217,16 @@ def main() -> None:
         c.start()
     t_open = time.time()
     while not all(c.ready.is_set() for c in cams):
-        _show(cams, [("相机启动中，请稍候 …", 1, (200, 200, 200)),
-                     (f"已等待 {time.time() - t_open:4.0f} 秒（通常需要约 1 分钟），先不要动方块", 0, (200, 200, 200))])
+        _show(cams, [("Starting cameras …", 1, (200, 200, 200)),
+                     (f"Waiting {time.time() - t_open:4.0f} s (usually about 1 min). Do not move the cube yet.", 0,
+                      (200, 200, 200))])
     us.start()
     while not us.ready.is_set():
-        _show(cams, [("超声波准备中 …", 1, (200, 200, 200))])
+        _show(cams, [("Starting ultrasonic sensor …", 1, (200, 200, 200))])
     t_cd = time.time()
     while time.time() - t_cd < 3.0:
-        _show(cams, [(f"准备开始：{3 - int(time.time() - t_cd)}", 1, (0, 200, 255)),
-                     ("倒计时结束后开始动作", 0, (200, 200, 200))])
+        _show(cams, [(f"Starting in {3 - int(time.time() - t_cd)}", 1, (0, 200, 255)),
+                     ("Start the motion after the countdown", 0, (200, 200, 200))])
     started = datetime.now(timezone.utc).isoformat()
     t_start = now()
     print("RECORDING - move the cube now. Q in the window or Ctrl+C to stop.", flush=True)
@@ -233,9 +234,10 @@ def main() -> None:
         while args.seconds is None or now() - t_start < args.seconds:
             el = now() - t_start
             last = us.rows[-1][2] if us.rows else "-"
-            left = "" if args.seconds is None else f"，还剩 {args.seconds - el:4.1f} 秒"
-            if not _show(cams, [(f"● 正在录制  {el:5.1f} 秒", 1, (60, 60, 255)),
-                                (f"现在可以动方块{left}    超声波 {last or '无回波'} mm    按 Q 结束", 0,
+            left = "" if args.seconds is None else f"    {args.seconds - el:4.1f} s left"
+            us_txt = f"{last} mm" if last not in ("", "-", None) else "no echo"
+            if not _show(cams, [(f"● REC  {el:5.1f} s", 1, (60, 60, 255)),
+                                (f"Ultrasonic {us_txt}{left}    Q to stop", 0,
                                  (255, 255, 255))], border=(40, 40, 230)):
                 break
     except KeyboardInterrupt:
@@ -243,7 +245,7 @@ def main() -> None:
     stop.set()
     t_stop = now()
     for _ in range(3):
-        _show(cams, [("录制结束，正在保存 …", 1, (120, 220, 120))])
+        _show(cams, [("Recording finished, saving …", 1, (120, 220, 120))])
     for th in (*cams, us):
         th.join(timeout=10)
     cv2.destroyAllWindows()

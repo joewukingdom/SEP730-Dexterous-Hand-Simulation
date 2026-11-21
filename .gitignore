@@ -223,5 +223,7 @@ MUJOCO_LOG.TXT
 # RL training outputs
 runs/
 
-# real2sim raw captures (go to the shared folder, not git)
+# real2sim raw captures (~23 GB, on the bench PC; real2sim/data/README.md describes them;
+# the CSV datasets are in real2sim/dataset_package/)
 real2sim/data/
+!real2sim/data/README.md

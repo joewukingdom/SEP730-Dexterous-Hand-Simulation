@@ -17,9 +17,10 @@ from __future__ import annotations
 import numpy as np
 
 FIX = {
-    # fullcheck01 (after the user re-ran the orca_core calibration): the joints run the same way
-    # as in the sim again, the real zero is spread further out. abdcheck01-03 (before that
-    # calibration) had sign -1 / offsets -20 and -27.
+    # fullcheck01 (aligned exactly by the replay log): the joints run the same way as in the sim,
+    # the real zero is spread further out. abdcheck01-03 (replay start guessed from image motion,
+    # possibly off by a pose) had given sign -1 / offsets -20 and -27 (used for run03-run07).
+    # calibration.yaml did not change between the two (last written 2026-11-20 19:14).
     "ring_abd": {"sign": 1.0, "offset_deg": -10.0},
     "pinky_abd": {"sign": 1.0, "offset_deg": -14.0},
 }

@@ -35,7 +35,7 @@ RUNS = {
     "run05": ("policy_run05.yaml", "run05", "手腕锁定，绿色面朝小指；方块比训练位置偏向手腕 1.5–2 cm，手指没碰到方块"),
     "run06": ("policy_run06.yaml", "run06", "手腕 −15~+15°；传感器跟着手腕移动（相关 0.86/0.88），超声波孪生无效"),
     "run07": ("policy_run07.yaml", "run07", "手腕锁定，绿色面朝小指，方块在训练位置；约 7 s 从指尖一侧掉落。有效"),
-    "run08": ("policy_run08.yaml", "run08", "重新标定后的新映射，手腕锁定，绿色面朝小指；方块转 124° 后从小指一侧掉落，"
+    "run08": ("policy_run08.yaml", "run08", "fullcheck01 测得的新映射，手腕锁定，绿色面朝小指；方块转 124° 后从小指一侧掉落，"
               "人手在下方远处接住（未接触）。有效"),
 }
 
@@ -98,8 +98,8 @@ sim 世界坐标系（米）：手装在 (0, 0, 0.16)，手指指向 +x，掌心
 ## 注意
 
 - 超声波传感器只是放在掌根上：手腕动过的回放（run03、run04、run06）超声波孪生无效。
-- 关节映射：run08 用重新标定后的映射（`joint_map.py`：无名指/小指外展 sim = core + (−10° / −14°)）；
-  run05–run07 的 `dataset_twin.csv` 是用当时的映射（符号 −1，−20° / −27°）算的。
+- 关节映射：run08 用 fullcheck01 测得的映射（`joint_map.py`：无名指/小指外展 sim = core + (−10° / −14°)）；
+  run03–run07 回放和 `dataset_twin.csv` 用的是 abdcheck03 的映射（符号 −1，−20° / −27°），无名指/小指方向很可能是错的。
 - 回放是开环的，policy 看不到真实方块。
 
 ## 各次录制
@@ -120,7 +120,7 @@ NOTES_EN = {
              "fingers did not reach it",
     "run06": "wrist -15..+15 deg; sensor follows the wrist (corr 0.86/0.88), ultrasonic twin invalid",
     "run07": "wrist locked, green face to the pinky, cube at the training position; falls off the fingertip side at ~7 s. Valid",
-    "run08": "new mapping after the hand recalibration, wrist locked, green face to the pinky; cube turned 124 deg, "
+    "run08": "mapping from fullcheck01, wrist locked, green face to the pinky; cube turned 124 deg, "
              "then rolls off the pinky side, caught far below by a human hand (no contact). Valid",
 }
 
@@ -187,9 +187,9 @@ MAE 5.9 mm); below 20 mm is the sensor's dead zone.
 
 - The ultrasonic sensor only rests on the palm base: replays that moved the wrist (run03, run04,
   run06) have an invalid ultrasonic twin.
-- Joint mapping: run08 uses the mapping after the hand recalibration (`joint_map.py`: ring/pinky
-  abduction sim = core + (-10 / -14 deg)); the `dataset_twin.csv` of run05-run07 was computed with
-  the mapping of that time (sign -1, -20 / -27 deg).
+- Joint mapping: run08 uses the mapping measured on fullcheck01 (`joint_map.py`: ring/pinky
+  abduction sim = core + (-10 / -14 deg)); the replays and `dataset_twin.csv` of run03-run07 used the
+  abdcheck03 mapping (sign -1, -20 / -27 deg), whose ring/pinky direction is probably wrong.
 - Replays are open loop; the policy does not see the real cube.
 
 ## Runs

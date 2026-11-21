@@ -109,7 +109,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li>超声波数字孪生：用相机定位 HC-SR04；15° 圆锥 25 条射线 + 偏移 +2.9 mm + 20 mm 盲区 + 25° 入射角限制。静态 ±4 mm，样本外 +3.9 mm；方块静止时 sim − 真实中位数 +0.7 mm、MAE 5.9 mm。</li>
     <li>同步录制（两相机 + 超声波同一时钟，偏差 ≤ 1 帧）和 AprilTag 方块，逐帧 6 自由度姿态（约 5–10 mm、3–5°）。</li>
     <li>policy 回放的完整数字孪生：sim 手按带时间记录的回放精确跟随，方块按相机姿态，逐采样比较超声波并记录回波来源。</li>
-    <li>用相机叠加图逐关节检查，发现无名指/小指外展的符号和零点错误，且重新标定手会再次改变它们。</li>
+    <li>用相机叠加图逐关节检查，找到无名指/小指外展的正确映射；没有回放时间记录的检查会得出相反的结论。</li>
   </ol>
   <div class="tbl"><table>
     <tr><th>量</th><th>数值</th></tr>
@@ -129,7 +129,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li>AprilTag 角点比打印黑框往里缩约 2.8%；用等效尺寸 26.25 mm 后两相机差距 23.5 → 10 mm。</li>
     <li>超声波回波取决于入射角：最近距离模型只对 36–51%，加入射角限制 88–95%；最佳阈值随距离增大（收发分离）。</li>
     <li>传感器只是放在掌根上、跟着手腕动（相关 0.86 / 0.88），超声波孪生只在手腕锁定时成立。</li>
-    <li>无名指、小指外展的方向和零点会随手的标定改变；每次标定后都要重新检查映射。</li>
+    <li>无名指、小指外展：靠画面推测时间的 abdcheck 得出"方向相反"，精确对齐的 fullcheck01 得出"同向、偏 10–14°"，期间标定文件没变。关节检查必须精确对齐时间。</li>
     <li>开环回放 sim policy 无法复现操作：看不到真实方块、放慢 12 倍、关节范围被截断。</li>
   </ul>
   <h3>局限</h3>
@@ -645,16 +645,17 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <img src="figures/real2sim/static01_timeline.png" alt="static01 时间线" tabindex="0" loading="lazy">
     <figcaption><b>图 X · static01</b>：方块静止时真实与 sim 超声波。8–12 s 方块进入 20 mm 盲区。</figcaption>
   </figure>
-  <h3>全手关节检查（fullcheck01）：重新标定后的映射</h3>
-  <p>用户在 abdcheck03 之后重新运行了 orca_core 标定。<code>pose_check.py make full</code>：每个关节单独动到两个角度，40 个姿态，最快 36°/s，256.5 s。自动分数（全部 6–8 px）分不出好坏，用 <code>finger_zoom.py</code> 的单指放大图目视判断。</p>
+  <h3>全手关节检查（fullcheck01）与新的映射</h3>
+  <p><code>pose_check.py make full</code>：每个关节单独动到两个角度，40 个姿态，最快 36°/s，256.5 s。自动分数（全部 6–8 px）分不出好坏，用 <code>finger_zoom.py</code> 的单指放大图目视判断。</p>
   <ul>
     <li>拇指 4 个关节、食指外展、四指弯曲：方向正确，幅度约 10° 以内。拇指没有反向。</li>
-    <li><b>无名指、小指外展方向又与 abdcheck03 的修正相反</b>，零点也变了（小指零点张开约 35°，之前约 60°）。标定改变了这两个关节。</li>
+    <li><b>无名指、小指外展方向与 abdcheck03 的修正相反</b>，零点也不同（小指零点张开约 35°，abdcheck03 画面里约 60°）。</li>
+    <li>原因核查：标定文件 <code>calibration.yaml</code> 当天只在 19:14 改过（posecheck03 之前），abdcheck01–03 之后没变。abdcheck 没有回放时间记录，开始时刻是推测的，错一个姿态（6.5 s）就会把 −20° 和 +20° 对调；也可能是手发生了物理变化。<b>以精确对齐的 fullcheck01 为准</b>；run03–run07 的无名指/小指指令很可能方向错了，run08 修正后手指作用明显更大。</li>
     <li>新映射：sim = core + offset，ring −10°、pinky −14°（旧值：符号 −1，−20° / −27°）。</li>
   </ul>
   <figure>
     <img src="figures/real2sim/fullcheck01_ring_pinky_vs_abdcheck03.jpg" alt="无名指小指对比" tabindex="0" loading="lazy">
-    <figcaption><b>图 Y</b>。上：abdcheck03（标定前）；中：fullcheck01 小指 0 / −20 / +20°；下：无名指 0 / −20 / +20°。</figcaption>
+    <figcaption><b>图 Y</b>。上：abdcheck03；中：fullcheck01 小指 0 / −20 / +20°；下：无名指 0 / −20 / +20°。</figcaption>
   </figure>
   <h3>run08：新映射，绿色面朝小指，手腕锁定</h3>
   <p>起始方块 x = 174 mm，绿色面法向 (0.15, 0.99, −0.09)。轨迹 36.1 s；小指外展有 735 帧停在内收上限 +30°。塔没动（0.00 / 0.27 px）。</p>
@@ -675,7 +676,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <figcaption><b>图 AA · run08 时间线</b>。</figcaption>
   </figure>
   <p>修正映射后手指对方块的作用明显变大，但方块仍会掉：开环回放中 policy 看不到真实方块，无法纠正。</p>
-  <p><b>采集注意事项</b>：相机和串口同时只能被一个程序打开；锁定手腕（传感器只是放在掌根上）；重新标定手之后要重新做关节检查；方块放在 sim 训练位置（x ≈ 0.17 m）。</p>
+  <p><b>采集注意事项</b>：相机和串口同时只能被一个程序打开；锁定手腕（传感器只是放在掌根上）；关节检查要用 replay_logged.py 精确对齐时间，每次标定手之后都要重做；方块放在 sim 训练位置（x ≈ 0.17 m）。</p>
 </section>
 
 <section id="repro">
