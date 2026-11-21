@@ -498,7 +498,20 @@ T_world_cam = T_world_board · T_board_cam
 
 **解决办法：让回放自己记录时间**。`real2sim/recording/replay_logged.py` 与 orca_core 的 `replay_continuous.py` 控制方式完全相同（同样的 create_hand / connect_hand / init_joints / set_joint_positions，由用户在 orca 环境中运行，Ctrl+C 停止），另外把每一帧发出时的 `time.perf_counter()` 写入 `real2sim/data/replay_logs/<名称>.csv`。Windows 上 perf_counter 是系统级的 QueryPerformanceCounter，与录制程序同一个时钟；`record.py` 现在把时钟原点写进 `meta.json`（`perf_counter_origin`），`twin.py <录制> <回放文件> <日志名>` 可以精确知道每个时刻真实手正在执行哪一帧。
 
-### 8.10 采集注意事项
+### 8.10 run04：带时间记录的回放与完整数字孪生
+
+- 回放用 `replay_logged.py`，录制与回放**精确对齐**：回放第一帧在 t = 87.651 s，录制从 87.559 s 开始；回放共发出 822 帧（完整轨迹 1149 帧，中途停止）。前臂塔位移约 1 px（约 0.25 mm），可以忽略。
+- 方块约 4 秒时掉落（开始时方块离传感器仍偏近，读数 26–39 mm）。
+
+![图 R：run04 完整数字孪生（sim 手按回放指令运动 + 方块按相机姿态）叠加在真实画面上](figures/real2sim/run04_twin_overlay.jpg)
+
+![图 S：run04 时间线。上：真实超声波、完整孪生、只看方块的 sim；下：孪生回波来自哪里](figures/real2sim/run04_twin_timeline.png)
+
+- 方块在手上时（0–4 秒），孪生的回波来自方块，读数与真实接近（约 30–40 mm）。
+- 方块掉落后，孪生一直读到 22–29 mm，真实传感器读到 42–94 mm；"150 mm 内是否有东西"的一致率 62%。
+- 查射线命中的部位：56 次采样里 49 次是 **`R-T-AP`（拇指根部那一节）**。sim 拇指运动时根部摆进了 15° 的圆锥，真实拇指根部没有。拇指是 sim 与真实偏差最大的部位：thumb_mcp 有 74% 的时间被截断在真实上限 40°（sim 到 100°），拇指各关节也还没有像外展关节那样逐个检查过。
+
+### 8.11 采集注意事项
 
 - 一个相机或串口同时只能被一个程序打开；预览窗口或串口监视器没关时，采集会卡住。
 - 不要大幅移动手腕：手和装在前臂塔上的传感器都会跟着移动，相机外参和传感器位置就会失效。

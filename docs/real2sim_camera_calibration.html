@@ -531,6 +531,21 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   </ul>
   <p><b>完整数字孪生</b>（<code>twin.py</code>）：sim 手按回放指令运动、方块按相机姿态放置，超声波同时计算手和方块。但回放在录制中的开始时刻无法可靠确定：画面变化与指令速度相关系数仅 0.22；"静止后首次运动"被拇指推方块触发；姿态匹配对任何早于录制的开始时刻得分都约 6.0 px，没有唯一最优。<b>run03 的完整孪生对比不采用。</b></p>
   <p><b>解决</b>：<code>replay_logged.py</code> 与 <code>replay_continuous.py</code> 控制方式相同（由用户运行、Ctrl+C 停止），另外记录每帧发出时的 <code>perf_counter</code>（Windows 上与录制程序同一个系统时钟）；<code>record.py</code> 把时钟原点写进 <code>meta.json</code>，<code>twin.py</code> 据此精确对齐。</p>
+  <h3>run04：带时间记录的回放与完整数字孪生</h3>
+  <p>用 <code>replay_logged.py</code> 回放，录制与回放<b>精确对齐</b>（回放第一帧 t = 87.651 s，录制开始 87.559 s；发出 822 / 1149 帧）。前臂塔位移约 1 px（0.25 mm）。方块约 4 秒掉落。</p>
+  <figure>
+    <img src="figures/real2sim/run04_twin_overlay.jpg" alt="run04 完整孪生叠加" tabindex="0" loading="lazy" style="max-width:640px">
+    <figcaption><b>图 R · run04 完整数字孪生</b>：sim 手按回放指令运动 + 方块按相机姿态，叠加在真实画面上。</figcaption>
+  </figure>
+  <figure>
+    <img src="figures/real2sim/run04_twin_timeline.png" alt="run04 时间线" tabindex="0" loading="lazy">
+    <figcaption><b>图 S · run04 时间线</b>。上：真实超声波、完整孪生、只看方块的 sim；下：孪生回波来自哪里。</figcaption>
+  </figure>
+  <ul>
+    <li>方块在手上时（0–4 秒）孪生回波来自方块，读数与真实接近（约 30–40 mm）。</li>
+    <li>方块掉落后孪生一直读到 22–29 mm，真实是 42–94 mm；"150 mm 内是否有东西"一致率 62%。</li>
+    <li>56 次采样里 49 次射线打到 <b><code>R-T-AP</code>（拇指根部）</b>：sim 拇指根部摆进了 15° 圆锥，真实的没有。拇指是偏差最大的部位（thumb_mcp 74% 时间被截断在 40°，拇指关节尚未逐个检查）。</li>
+  </ul>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 
