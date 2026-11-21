@@ -498,6 +498,20 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <figcaption><b>图 N · 重新标定后</b>。</figcaption>
   </figure>
   <p>只有小幅改善（top −3%，side −7%）。残余偏差集中在<b>小指和无名指</b>：真实的这两根手指比 sim 更向外偏，食指、中指基本对齐；可能是外展关节零点偏差或模型与实物的几何差异。评分包含背景边缘，只反映大致趋势。</p>
+  <p><b>外展关节检查（abdcheck01）</b>：食指、无名指、小指外展依次停在 −20° / +20°。按手指单独扫描修正量的自动拟合不可信（多个结果落在扫描边界；相邻手指外形相似，轮廓会贴到旁边手指的边缘），改为直接画图判断。</p>
+  <figure>
+    <img src="figures/real2sim/abd_direction.jpg" alt="sim 外展方向" tabindex="0" loading="lazy" style="max-width:640px">
+    <figcaption><b>图 O · sim 外展方向</b>。蓝 −20°、黄 0°、洋红 +20°；背景为真实手在对应指令下的画面。</figcaption>
+  </figure>
+  <ul>
+    <li><b>无名指和小指的外展方向在 sim 和真实手上相反</b>：sim 的 + 是往里收，真实手指令变大时往外张。<code>sim_to_real.py</code> 只为 index_abd 做了符号翻转。</li>
+    <li>真实的"0°"比 sim 更往外张。按 <code>sim = −指令 + 偏移</code> 比较，无名指约 −20°、小指约 −25°~−30° 最贴合（目测，±5–10°）。</li>
+  </ul>
+  <figure>
+    <img src="figures/real2sim/abd_flip_offset.jpg" alt="翻转加偏移" tabindex="0" loading="lazy">
+    <figcaption><b>图 P</b>。按 sim = −指令 + 偏移 画出的轮廓：黄 0°、蓝 −10°、洋红 −20°。</figcaption>
+  </figure>
+  <p>结论：top 视角的残余偏差主要来自这两个关节的<b>符号相反 + 零点偏移</b>，重新标定无法消除，需要在 sim↔真实的关节映射里修正。</p>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 
