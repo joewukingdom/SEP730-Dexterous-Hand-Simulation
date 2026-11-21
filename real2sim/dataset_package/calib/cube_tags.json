@@ -1,0 +1,15 @@
+{
+  "family": "DICT_APRILTAG_36h11",
+  "tag_mm": 27.0,
+  "face_mm": 35.0,
+  "faces": {
+    "0": "+z (red face)",
+    "1": "-z (opposite red)",
+    "2": "+x",
+    "3": "-x",
+    "4": "+y",
+    "5": "-y"
+  },
+  "effective_tag_mm": 26.25,
+  "effective_tag_note": "Detected outer corners sit ~2.8% inside the printed black square (blur/JPEG on 90-130 px tags), so poses use 26.25 mm. Found 2026-11-20 from two synchronized top+side captures (best k 0.970 and 0.9725 vs 27 mm); printed size measured 26.8-27.0 mm."
+}

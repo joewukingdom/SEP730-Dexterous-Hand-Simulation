@@ -1,0 +1,107 @@
+# Camera real2sim rig description. Edit this file to match the real bench.
+
+# ChArUco calibration board. Print board_letter.pdf from make_targets.py at 100% scale,
+# glue it flat onto something rigid, then MEASURE one square with calipers and put
+# the measured value in square_mm (and scale marker_mm by the same factor).
+board:
+  squares_x: 7
+  squares_y: 5
+  square_mm: 35.0            # measured 2026-11-18: 100 mm bar OK, 7 sq = 245.0 mm, 5 sq = 174.5 mm
+  marker_mm: 26.0
+  dictionary: DICT_5X5_100   # cube faces use AprilTag 36h11, so the two never mix up
+
+# The two real cameras. `device` is the OpenCV index (try capture.py --list).
+# Brio 100: fixed focus, 1920x1080 max.
+# Joe's bench (checked 2026-11-18): device 0 = side Brio, device 1 = top Brio.
+# Device 2 is the NVIDIA Broadcast virtual camera (a blurred copy of device 0): never
+# calibrate on it, its image is post-processed.
+cameras:
+  top:
+    device: 1
+    width: 1920
+    height: 1080
+    # board flat on the bench next to the hand (uses the default board_in_world below)
+  side:
+    device: 0
+    width: 1920
+    height: 1080
+    # The side camera looks almost level with the bench, so a flat board is too
+    # foreshortened for it: stand the board up (use a square/box to keep it vertical)
+    # between the hand and the camera, print facing the camera. The side camera is on
+    # the sim's +y side (fingers appear on the left), so tilt -90 = print faces +y.
+    # Centre height = bench height + 87.5 mm (half of the 175 mm board height).
+    # Joe's bench, measured 2026-11-20: board standing on the bench with its back against
+    # the tower's pinky-side face (y = 0.037), print facing the side camera, upright
+    # (100 mm bar at the bottom) -> yaw 180, tilt 90.
+    #   a = 130 mm: tower front face (x = 0.099) -> fingertip-side checker edge
+    #       centre x = 0.099 + 0.130 - 0.1225 = 0.1065
+    #   print surface y = 0.037 + 0.00453 (board thickness) = 0.0415
+    #   M = 45 mm: bench -> bottom checker edge; centre z = 0.092 + 0.045 + 0.0875 = 0.2245
+    board_in_world:
+      pos_m: [0.1065, 0.0415, 0.2245]
+      yaw_deg: 180.0
+      tilt_deg: 90.0
+
+# MuJoCo scene the calibrated cameras are added to (in src/orca_sim/scenes/v2/).
+scene: scene_right_cube_orientation.xml
+
+# The real bench, added to the generated _real2sim scene only (a solid box whose top is at
+# top_z; the base scene's floor at z = 0 stays below it, so training scenes are unchanged).
+# top_z = 0.112 - H with H = 20 mm (tower bottom above the bench). The real bench edge is
+# just past the fingertips; it is not modelled (the box is larger than the bench).
+bench:
+  top_z: 0.092
+
+# HC-SR04 on the forearm tower (ESP32-S3 on COM4), located 2026-11-20 from the two
+# calibrated cameras with real2sim/ultrasonic/twin_check.py (no tape measure):
+#   transducer front faces: +y one triangulated from top (1045, 797) + side (1338, 515),
+#   -y one from top (1155, 782) at the same height; their spacing comes out 26.4 mm
+#   (HC-SR04: 26 mm). pos = midpoint of the two faces; dir = horizontal, perpendicular to
+#   the line joining them, towards the fingers (the board itself faces the palm/cube).
+# The real sensor answers with the nearest echo inside a cone, so the sim sensor is a cone
+# of rangefinders (us_0 = axis) and its reading is the minimum hit (camlib.ultrasonic_reading).
+ultrasonic:
+  pos_m: [0.1069, -0.0107, 0.2010]
+  dir: [0.965, -0.262, 0.0]
+  half_angle_deg: 15.0
+  rings: 3
+  n_az: 8
+  # Calibrated 2026-11-20 against the side camera (cube face parallel to the sensor at
+  # 27 / 42 / 61 / 77 mm): sim was 2.9 +- 0.6 mm short at every position -> offset.
+  # The real sensor reads a constant 20 mm when the cube is closer than ~2 cm.
+  range_offset_m: 0.0029
+  min_range_m: 0.020
+  # Specular echo (camlib.ultrasonic_reading_specular): a ray only echoes if it meets the
+  # surface within this angle of the normal. Chosen 2026-11-20 on run01 (policy replay,
+  # cube ~4 cm) + angle02 (cube turned by hand, ~7 cm): sees-cube agreement with the real
+  # sensor 88% pooled at 25 deg (20 deg: 81%, no limit: 46%). In-sample; validate on new data.
+  max_incidence_deg: 25.0
+
+# Board placement (default for every camera without its own), in the MuJoCo WORLD frame
+# of `scene`: board CENTRE position (m); the board starts flat with the print up and its
+# long (7-square) edge along world x, is tilted by tilt_deg about that edge (90 = print
+# faces -y, -90 = print faces +y), then turned by yaw_deg about world z.
+#
+# Matching the real bench to the sim world, for this scene:
+#   * fingers point along +x, the palm faces +z, the thumb is on the -y side
+#   * the black forearm tower spans x -0.058..0.099, y -0.057..0.037, z 0.112..0.208
+#   * so if the real tower's bottom is H metres above the bench, the bench is at
+#     z = 0.112 - H in the sim. Flat board: z = 0.112 - H + backing thickness.
+#     Standing board: centre z = 0.112 - H + 0.0875.
+#   * x / y: measure the board centre from the tower. The tower's front face (where
+#     the wrist starts) is at x = 0.099; its centre line is at y = -0.010.
+# Joe's bench, re-measured 2026-11-20 after the hand was moved (tape measure, board edge
+# pushed against a straightedge held on the tower's pinky-side face):
+#   H = 20 mm  -> bench at z = 0.112 - 0.020 = 0.092
+#   board flat on the pinky (+y) side, T = 4.53 mm. In this capture the 100 mm bar faces
+#   AWAY from the hand -> yaw 180 (bar facing the hand would be yaw 0).
+#   D = 209 mm: tower front face (x = 0.099) -> far (fingertip-side) checker edge
+#       centre x = 0.099 + 0.209 - 0.1225 = 0.1855
+#   B = 50 mm: tower pinky-side face (y = 0.037) -> near checker edge
+#       centre y = 0.037 + 0.050 + 0.0875 = 0.1745
+#   z = 0.092 + 0.00453 = 0.0965
+# Hand-measured: expect a few mm / ~1-2 deg error.
+board_in_world:
+  pos_m: [0.1855, 0.1745, 0.0965]
+  yaw_deg: 180.0
+  tilt_deg: 0.0

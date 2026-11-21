@@ -560,7 +560,79 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <tr><td>33–50 s（回放后）</td><td class="num">49.0 mm</td><td class="num">33.9 mm</td><td class="num">17.9°</td><td class="num">154.6 mm</td></tr>
   </table></div>
   <p>方块只移动约 5 mm、入射角 16–20°，但真实读数从 29 跳到 49 mm 并保持：真实传感器不再收到方块正面的回波，孪生（25° 阈值）仍判为方块。<b>可能原因：HC-SR04 收发分离</b>（两探头相距 26 mm），近距离时稍有倾斜的面会把反射打偏接收探头，容许角随距离增大，与阈值的距离依赖一致（约 4 cm 时 15–20°，约 7 cm 时 25–30°）。下一步：sim 里做收发分离的反射模型。</p>
-  <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
+  <h3>run06：手腕 ±15°，超声波传感器跟着手腕动</h3>
+  <p>回放时真实读数随手腕变化。<code>sensor_track.py</code> 在两个相机里跟踪传感器：位移与指令手腕角相关系数 top <b>+0.86</b>、side <b>+0.88</b>，最多移动 63 px（约 1.5 cm），回到原位后仍差 2–3 px。传感器只是<b>放在</b>掌根上，无法固定；sim 传感器固定在世界坐标系，所以<b>手腕动过的回放（run03、run04、run06）超声波孪生不成立</b>，之后一律锁定手腕。</p>
+  <figure>
+    <img src="figures/real2sim/run06_sensor_track.png" alt="run06 传感器跟踪" tabindex="0" loading="lazy">
+    <figcaption><b>图 U · run06</b>：传感器在图像中的位移与指令手腕角。</figcaption>
+  </figure>
+  <h3>手腕锁定时，哪种朝向最容易被拨动（sim 扫描）</h3>
+  <p><code>orientation_sweep.py</code>：方块在训练位置、手腕动作为 0，每种绿色面朝向跑 2 s policy。</p>
+  <div class="tbl"><table>
+    <tr><th>绿色面朝向</th><th>移动</th><th>转动</th><th>到达目标</th><th>掉落</th></tr>
+    <tr><td>朝上 (+z)</td><td class="num">16.6 mm</td><td class="num">36.9°</td><td>起始即满足</td><td>否</td></tr>
+    <tr><td>朝下 (−z)</td><td class="num">13.2 mm</td><td class="num">32.9°</td><td>–</td><td>否</td></tr>
+    <tr><td>朝指尖 (+x)</td><td class="num">13.8 mm</td><td class="num">47.5°</td><td>–</td><td>否</td></tr>
+    <tr><td>朝手腕 (−x)</td><td class="num">17.0 mm</td><td class="num">18.9°</td><td>–</td><td>否</td></tr>
+    <tr><td><b>朝小指 (+y)</b></td><td class="num">17.3 mm</td><td class="num"><b>87.2°</b></td><td><b>0.65 s</b></td><td>否</td></tr>
+    <tr><td>朝拇指 (−y)</td><td class="num">25.2 mm</td><td class="num">62.8°</td><td>–</td><td>否</td></tr>
+  </table></div>
+  <p>朝小指时手指作用最大，且是唯一完成翻转的朝向，所以 run05、run07、run08 都用它。</p>
+  <h3>run07：方块放在训练位置（x = 169.7 mm）</h3>
+  <p>run05 手指没碰到方块，因为方块比训练位置（x = 0.17 m）偏向手腕 1.5–2 cm。run07 放到训练位置。塔和传感器都没动（塔 0.00 / 0.80 px，传感器 0.0 px）。</p>
+  <figure>
+    <img src="figures/real2sim/run07_keyframes.jpg" alt="run07 关键时刻" tabindex="0" loading="lazy" style="max-width:640px">
+    <figcaption><b>图 V · run07 关键时刻</b>。洋红 = sim 手（按回放指令），青色 = sim 方块（按相机姿态）。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <tr><th>时刻</th><th>发生了什么</th><th>超声波 真实 / sim（sim 打到）</th></tr>
+    <tr><td>0.5 s</td><td>方块在掌心</td><td>33 / 49 mm（方块）</td></tr>
+    <tr><td>5.9 s</td><td>手指弯曲，方块被推动 5 mm、转 3°</td><td>42 / 54 mm（方块）</td></tr>
+    <tr><td>7.1 s</td><td>方块到指尖一侧，移动 45 mm、转 23°</td><td>无回波 / 无回波</td></tr>
+    <tr><td>9.1 s</td><td>方块已从指尖一侧掉落</td><td>1289 mm（墙）/ 65 mm（手指）</td></tr>
+  </table></div>
+  <p>回放期间一致率 78%；两边都看到东西时孪生 − 真实中位数 <b>+6.9 mm</b>，MAE 9.9 mm（n = 48）。</p>
+  <figure>
+    <img src="figures/real2sim/run07_twin_timeline.png" alt="run07 时间线" tabindex="0" loading="lazy">
+    <figcaption><b>图 W · run07 时间线</b>。</figcaption>
+  </figure>
+  <h3>static01：传感器位置复核</h3>
+  <p>拇指掰开，方块在掌心几个位置各静止几秒。269 个样本中 263 个"看到方块"一致；sim − 真实中位数 <b>+0.7 mm</b>，MAE 5.9 mm。<b>传感器位置不需要改。</b>run07 里 12–16 mm 的差距更可能是蜷着的真实拇指（thumb_dip 72°）挡在波束里：传感器方向向拇指一侧偏约 15°。</p>
+  <figure>
+    <img src="figures/real2sim/static01_timeline.png" alt="static01 时间线" tabindex="0" loading="lazy">
+    <figcaption><b>图 X · static01</b>：方块静止时真实与 sim 超声波。8–12 s 方块进入 20 mm 盲区。</figcaption>
+  </figure>
+  <h3>全手关节检查（fullcheck01）：重新标定后的映射</h3>
+  <p>用户在 abdcheck03 之后重新运行了 orca_core 标定。<code>pose_check.py make full</code>：每个关节单独动到两个角度，40 个姿态，最快 36°/s，256.5 s。自动分数（全部 6–8 px）分不出好坏，用 <code>finger_zoom.py</code> 的单指放大图目视判断。</p>
+  <ul>
+    <li>拇指 4 个关节、食指外展、四指弯曲：方向正确，幅度约 10° 以内。拇指没有反向。</li>
+    <li><b>无名指、小指外展方向又与 abdcheck03 的修正相反</b>，零点也变了（小指零点张开约 35°，之前约 60°）。标定改变了这两个关节。</li>
+    <li>新映射：sim = core + offset，ring −10°、pinky −14°（旧值：符号 −1，−20° / −27°）。</li>
+  </ul>
+  <figure>
+    <img src="figures/real2sim/fullcheck01_ring_pinky_vs_abdcheck03.jpg" alt="无名指小指对比" tabindex="0" loading="lazy">
+    <figcaption><b>图 Y</b>。上：abdcheck03（标定前）；中：fullcheck01 小指 0 / −20 / +20°；下：无名指 0 / −20 / +20°。</figcaption>
+  </figure>
+  <h3>run08：新映射，绿色面朝小指，手腕锁定</h3>
+  <p>起始方块 x = 174 mm，绿色面法向 (0.15, 0.99, −0.09)。轨迹 36.1 s；小指外展有 735 帧停在内收上限 +30°。塔没动（0.00 / 0.27 px）。</p>
+  <figure>
+    <img src="figures/real2sim/run08_keyframes.jpg" alt="run08 关键时刻" tabindex="0" loading="lazy" style="max-width:640px">
+    <figcaption><b>图 Z · run08 关键时刻</b>。6.0 s 起用户的手进入 top 画面，只在机械手下方远处接住方块，没有碰到方块或机械手。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <tr><th></th><th>run07</th><th>run08</th></tr>
+    <tr><td>方块最大转动</td><td class="num">23°</td><td class="num"><b>124°</b></td></tr>
+    <tr><td>掉落方向</td><td>指尖一侧</td><td>小指一侧</td></tr>
+    <tr><td>"看到东西"一致率</td><td class="num">78%</td><td class="num">79%</td></tr>
+    <tr><td>孪生 − 真实（中位数）</td><td class="num">+6.9 mm</td><td class="num">+6.3 mm</td></tr>
+    <tr><td>MAE</td><td class="num">9.9 mm</td><td class="num">7.3 mm</td></tr>
+  </table></div>
+  <figure>
+    <img src="figures/real2sim/run08_twin_timeline.png" alt="run08 时间线" tabindex="0" loading="lazy">
+    <figcaption><b>图 AA · run08 时间线</b>。</figcaption>
+  </figure>
+  <p>修正映射后手指对方块的作用明显变大，但方块仍会掉：开环回放中 policy 看不到真实方块，无法纠正。</p>
+  <p><b>采集注意事项</b>：相机和串口同时只能被一个程序打开；锁定手腕（传感器只是放在掌根上）；重新标定手之后要重新做关节检查；方块放在 sim 训练位置（x ≈ 0.17 m）。</p>
 </section>
 
 <section id="repro">

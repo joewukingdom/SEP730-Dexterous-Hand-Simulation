@@ -1,0 +1,9 @@
+{
+  "replay": "policy_run07.yaml",
+  "replay_start_t": 89.07051210000645,
+  "alignment": "replay log",
+  "replay_log": "run07",
+  "motion_start_guess_t": 89.07051210000645,
+  "motion_speed_corr": NaN,
+  "pose_fit_px": NaN
+}

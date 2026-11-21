@@ -1,0 +1,36 @@
+{
+  "started_utc": "2026-11-21T01:30:17.981831+00:00",
+  "clock": "time.perf_counter, s since process start; t = arrival on host",
+  "recording_start_t": 87.09678969997913,
+  "stopped_t": 137.13108720001765,
+  "port": "COM4",
+  "perf_counter_origin": 442616.5532809,
+  "cameras": {
+    "top": {
+      "device": 1,
+      "width": 1920,
+      "height": 1080,
+      "frames": 1501,
+      "dropped": 0
+    },
+    "side": {
+      "device": 0,
+      "width": 1920,
+      "height": 1080,
+      "board_in_world": {
+        "pos_m": [
+          0.1065,
+          0.0415,
+          0.2245
+        ],
+        "yaw_deg": 180.0,
+        "tilt_deg": 90.0
+      },
+      "frames": 1501,
+      "dropped": 0
+    }
+  },
+  "ultrasonic_samples": 459,
+  "ultrasonic_backlog_discarded": 1169,
+  "note": "policy_run07\uff0c\u65b9\u5757\u5728\u8bad\u7ec3\u4f4d\u7f6e\uff0c\u7eff\u8272\u9762\u671d\u5c0f\u6307\uff0c\u624b\u8155\u9501\u5b9a"
+}

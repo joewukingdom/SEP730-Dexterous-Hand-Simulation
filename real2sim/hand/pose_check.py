@@ -51,6 +51,17 @@ ABD_JOINTS, ABD_VALUES = ("index_abd", "ring_abd", "pinky_abd"), (-20.0, 20.0)
 # pose set "thumb": each thumb joint alone at two angles inside the real ROM
 THUMB_TESTS = {"thumb_cmc": (-30.0, 25.0), "thumb_abd": (-10.0, 30.0), "thumb_mcp": (0.0, 35.0),
                "thumb_dip": (0.0, 70.0)}
+# pose set "full": every finger joint alone at two angles (orca_core degrees, inside the ROM),
+# back to zero after each finger; rendered through the corrected mapping (joint_map.py) and
+# each joint's correction is fitted (fit_joints)
+FULL_TESTS = {
+    "thumb": {"thumb_cmc": (-30.0, 25.0), "thumb_abd": (-10.0, 30.0), "thumb_mcp": (20.0, 38.0),
+              "thumb_dip": (35.0, 70.0)},
+    **{f: {f"{f}_abd": (-20.0, 20.0), f"{f}_mcp": (45.0, 80.0), f"{f}_pip": (45.0, 80.0)}
+       for f in ("index", "middle", "ring", "pinky")},
+}
+SET_HOLD_S = {"full": 3.0}
+SET_RAMP_S = {"full": 3.5}
 
 
 def out_name(pose_set: str) -> str:
@@ -72,6 +83,14 @@ def poses(cfg: dict, pose_set: str = "basic") -> list[tuple[str, dict[str, float
         p.update(kw)
         return p
 
+    if pose_set == "full":
+        seq = [("neutral", neutral), ("zero", base())]
+        for finger, tests in FULL_TESTS.items():
+            for j, vals in tests.items():
+                for v in vals:
+                    seq.append((f"{j}_{v:+.0f}", base(**{j: v})))
+            seq.append((f"zero_after_{finger}", base()))
+        return seq + [("neutral_end", neutral)]
     if pose_set == "thumb":
         # each thumb joint on its own at two angles (within the real ROM), all else at 0
         seq = [("neutral", neutral), ("zero", base())]
@@ -121,7 +140,9 @@ def make(pose_set: str = "basic") -> None:
             if not lo <= v[i] <= hi:
                 raise SystemExit(f"pose {name}: {j}={v[i]} outside ROM {roms[j]}")
         vecs.append(v)
-    n_hold, n_ramp = int(HOLD_S * HZ), int(RAMP_S * HZ)
+    hold_s = SET_HOLD_S.get(pose_set, HOLD_S)
+    ramp_s = SET_RAMP_S.get(pose_set, RAMP_S)
+    n_hold, n_ramp = int(hold_s * HZ), int(ramp_s * HZ)
     s = 0.5 - 0.5 * np.cos(np.pi * np.linspace(0, 1, n_ramp))[:, None]
     frames, schedule, t = [], [], 0.0
     for k, ((name, _), v) in enumerate(zip(seq, vecs)):
@@ -141,8 +162,8 @@ def make(pose_set: str = "basic") -> None:
                      "source": "real2sim pose check (known poses, held)", "record_mode": "commanded"},
         "angles": [[round(float(x), 3) for x in row] for row in full],
     }, sort_keys=False), encoding="utf-8")
-    SCHEDULE.write_text(json.dumps({"hz": HZ, "hold_s": HOLD_S, "ramp_s": RAMP_S, "poses": schedule}, indent=2))
-    print(f"wrote {out}: {len(full) / HZ:.1f} s, {len(seq)} poses held {HOLD_S:g} s each, "
+    SCHEDULE.write_text(json.dumps({"hz": HZ, "hold_s": hold_s, "ramp_s": ramp_s, "poses": schedule}, indent=2))
+    print(f"wrote {out}: {len(full) / HZ:.1f} s, {len(seq)} poses held {hold_s:g} s each, "
           f"fastest joint {peak:.0f} deg/s")
     for p in schedule:
         print(f"  {p['hold_start_s']:5.1f}-{p['hold_end_s']:5.1f} s  {p['pose']}")
@@ -217,7 +238,7 @@ def compare(name: str, pose_set: str = "basic", log_name: str | None = None) -> 
     for p in sched["poses"]:
         t_mid = off + (p["hold_start_s"] + p["hold_end_s"]) / 2
         mujoco.mj_resetData(m, d)
-        if pose_set == "abdfix":  # render through the corrected mapping being tested
+        if pose_set in ("abdfix", "full"):  # render through the corrected mapping being tested
             set_sim_pose(bridge, d.qpos, p["angles_deg"])
         else:
             for j, deg in p["angles_deg"].items():

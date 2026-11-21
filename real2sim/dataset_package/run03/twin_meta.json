@@ -1,0 +1,8 @@
+{
+  "replay": "policy_run03.yaml",
+  "replay_start_t": 79.87986099999982,
+  "motion_start_guess_t": 88.07986099999984,
+  "motion_speed_corr": 0.2571806630221136,
+  "pose_fit_px": 6.027538049788702,
+  "alignment": "UNRELIABLE: guessed from image motion / hand pose, no replay log (score flat for any start before the recording)"
+}

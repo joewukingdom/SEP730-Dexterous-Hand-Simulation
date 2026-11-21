@@ -1,0 +1,9 @@
+{
+  "replay": "policy_run08.yaml",
+  "replay_start_t": 83.87663820001762,
+  "alignment": "replay log",
+  "replay_log": "run08",
+  "motion_start_guess_t": 83.87663820001762,
+  "motion_speed_corr": NaN,
+  "pose_fit_px": NaN
+}
