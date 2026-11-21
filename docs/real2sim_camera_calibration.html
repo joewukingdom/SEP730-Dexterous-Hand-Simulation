@@ -86,6 +86,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 
 <nav class="toc" aria-label="目录">
   <ol>
+    <li><a href="#paper">论文要点</a></li>
     <li><a href="#method">方法与坐标约定</a></li>
     <li><a href="#board">标定板与程序验证</a></li>
     <li><a href="#intr">内参标定（四轮）</a></li>
@@ -98,6 +99,48 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li><a href="#repro">复现命令</a></li>
   </ol>
 </nav>
+
+<section id="paper">
+  <h2><span class="no">00</span>论文要点（主要结果与结论）</h2>
+  <p>英文版：<code>docs/real2sim_camera_calibration_en.html</code>（内容相同）。</p>
+  <h3>做了什么</h3>
+  <ol>
+    <li>相机数字孪生：两个真实相机按真实内参和位姿放进 MuJoCo，sim 手与真实手重合到 10–20 px（约 3–5 mm）。</li>
+    <li>超声波数字孪生：用相机定位 HC-SR04；15° 圆锥 25 条射线 + 偏移 +2.9 mm + 20 mm 盲区 + 25° 入射角限制。静态 ±4 mm，样本外 +3.9 mm；方块静止时 sim − 真实中位数 +0.7 mm、MAE 5.9 mm。</li>
+    <li>同步录制（两相机 + 超声波同一时钟，偏差 ≤ 1 帧）和 AprilTag 方块，逐帧 6 自由度姿态（约 5–10 mm、3–5°）。</li>
+    <li>policy 回放的完整数字孪生：sim 手按带时间记录的回放精确跟随，方块按相机姿态，逐采样比较超声波并记录回波来源。</li>
+    <li>用相机叠加图逐关节检查，发现无名指/小指外展的符号和零点错误，且重新标定手会再次改变它们。</li>
+  </ol>
+  <div class="tbl"><table>
+    <tr><th>量</th><th>数值</th></tr>
+    <tr><td>内参 RMS</td><td>top 0.675 px，side 0.587 px</td></tr>
+    <tr><td>相机位姿重复性</td><td>约 5 mm</td></tr>
+    <tr><td>超声波探头间距（相机定位）</td><td>26.4 mm（规格 26 mm）</td></tr>
+    <tr><td>超声波静态，位置 2–5</td><td>MAE 3.3 mm，RMS 3.9 mm；样本外 +3.9 mm</td></tr>
+    <tr><td>"有无回波"一致率：最近距离 vs 25° 镜面</td><td>46% vs 88%</td></tr>
+    <tr><td>三路时间</td><td>top +9 ms，side −27 ms；超声波采样限制 ±50 ms</td></tr>
+    <tr><td>static01</td><td>sim − 真实中位数 +0.7 mm，MAE 5.9 mm</td></tr>
+    <tr><td>完整孪生 run07 / run08</td><td>一致率 78% / 79%；中位数 +6.9 / +6.3 mm；MAE 9.9 / 7.3 mm</td></tr>
+    <tr><td>开环 policy 转动方块 run07 → run08</td><td>23° → 124°</td></tr>
+  </table></div>
+  <h3>值得写进论文的发现</h3>
+  <ul>
+    <li>标定 RMS 小不代表内参对：覆盖不全时 RMS 0.46 px 但 fx 错 57%。</li>
+    <li>AprilTag 角点比打印黑框往里缩约 2.8%；用等效尺寸 26.25 mm 后两相机差距 23.5 → 10 mm。</li>
+    <li>超声波回波取决于入射角：最近距离模型只对 36–51%，加入射角限制 88–95%；最佳阈值随距离增大（收发分离）。</li>
+    <li>传感器只是放在掌根上、跟着手腕动（相关 0.86 / 0.88），超声波孪生只在手腕锁定时成立。</li>
+    <li>无名指、小指外展的方向和零点会随手的标定改变；每次标定后都要重新检查映射。</li>
+    <li>开环回放 sim policy 无法复现操作：看不到真实方块、放慢 12 倍、关节范围被截断。</li>
+  </ul>
+  <h3>局限</h3>
+  <ul>
+    <li>相机位姿依赖卷尺测量（±1–2 mm、±1–2°），尚无独立的样本外检查。</li>
+    <li>超声波模型是单基地圆锥 + 入射角阈值，下一步做收发分离模型。</li>
+    <li>手指关节吻合度靠看图判断；policy 回放是开环的。</li>
+  </ul>
+  <h3>给队友的数据集</h3>
+  <p><code>real2sim/dataset_package/</code>（及 <code>.zip</code>，0.5 MB，<code>package.py</code> 生成）：每次录制的 <code>dataset.csv</code>、<code>dataset_twin.csv</code>、meta、回放时间记录和轨迹；<code>calib/</code>；中英文 README（每一列、单位、坐标系、哪些录制有效）。有效的完整孪生：<b>run07、run08</b>；run03、run04、run06 手腕动过，超声波孪生无效。</p>
+</section>
 
 <section id="method">
   <h2><span class="no">01</span>方法与坐标约定</h2>
@@ -658,8 +701,35 @@ python real2sim/cameras/correct_bump.py top real2sim/data/extr_top/top/008.png r
 python real2sim/cameras/show_scene.py --calibrated
 cd real2sim/cameras &amp;&amp; python make_figures.py
 
-# 超声波
-python hardware/ultrasonic/read_ultrasonic.py --raw</pre>
+# ---- 超声波 ----
+python hardware/ultrasonic/read_ultrasonic.py --raw
+python real2sim/ultrasonic/twin_check.py locate --top-a U V --side-a U V --top-b U V
+
+# ---- 方块标签 ----
+python real2sim/cube/cube_tags.py capture
+python real2sim/cube/cube_tags.py solve
+
+# ---- 关节检查（每次标定手之后） ----
+python real2sim/hand/pose_check.py make full
+python real2sim/recording/record.py fullcheck01 --seconds 290
+#   第二个终端（orca 文件夹）：
+#   cd C:\Users\Owner\Desktop\orca
+#   uv run python "...\real2sim\recording\replay_logged.py" orca_core/models/v2/orcahand_right/config.yaml --replay-file pose_check_full.yaml --log fullcheck01
+python real2sim/hand/pose_check.py compare fullcheck01 full fullcheck01
+python real2sim/hand/finger_zoom.py fullcheck01 full fullcheck01
+
+# ---- policy 实验（方块在 x ≈ 0.17 m，绿色面朝小指，手腕锁定） ----
+python real2sim/recording/record.py start08 --seconds 3
+python real2sim/cube/snapshot_from_recording.py start08
+python real2sim/policy/policy_to_replay.py --start-from real2sim/data/recordings/start08/snapshot --out policy_run08.yaml
+python real2sim/recording/record.py run08 --seconds 60
+#   第二个终端：replay_logged.py ... --replay-file policy_run08.yaml --log run08
+
+# ---- 处理 ----
+python real2sim/recording/process.py run08
+python real2sim/recording/twin.py run08 policy_run08.yaml run08
+python real2sim/recording/keyframes.py run08 policy_run08.yaml run08
+python real2sim/recording/package.py</pre>
   <p>产物：<code>real2sim/cameras/calib/cameras.json</code>（位姿 + 内参）、<code>top_intrinsics.json</code>、<code>side_intrinsics.json</code>、<code>src/orca_sim/scenes/v2/scene_right_cube_orientation_real2sim.xml</code>、<code>real2sim/cameras/rig.yaml</code>（全部测量值及换算）。分支 <code>real2sim-cameras</code>。</p>
 </section>
 

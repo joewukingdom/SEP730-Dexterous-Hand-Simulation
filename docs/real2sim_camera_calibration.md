@@ -12,7 +12,52 @@
 | `real2sim/cameras/rig.yaml` | 实验台的全部测量值及换算过程（注释里写明） |
 | `docs/figures/real2sim/` | 本文的所有图 |
 
-最终结果见图 F（第 7 节）：sim 的手（洋红色轮廓）与真实的手在两个视角下都重合，偏差约 10–20 px（约 3–5 mm）。
+最终结果见图 G（第 7 节）：sim 的手（洋红色轮廓）与真实的手在两个视角下都重合，偏差约 10–20 px（约 3–5 mm）。
+
+英文版：`docs/real2sim_camera_calibration_en.md`（内容相同，图相同）。
+
+---
+
+## 0. 论文要点（主要结果与结论）
+
+**做了什么**
+
+1. 相机数字孪生：两个真实相机按真实内参和位姿放进 MuJoCo，sim 手与真实手在两个视角下重合到 10–20 px（约 3–5 mm）（第 7 节）。
+2. 超声波数字孪生：用相机（不是尺子）定位 HC-SR04；模型为 15° 圆锥 25 条射线 + 距离偏移 +2.9 mm + 20 mm 盲区 + 25° 镜面入射角限制。静态距离误差 ±4 mm，样本外 +3.9 mm（8.3）；方块静止在掌心时 sim − 真实中位数 +0.7 mm，MAE 5.9 mm（8.15）。
+3. 同步录制（两相机 + 超声波同一时钟，扣除实测延迟后偏差 ≤ 1 帧）和 AprilTag 方块，逐帧得到 6 自由度方块姿态（约 5–10 mm、3–5°）（8.4–8.5）。
+4. policy 回放的完整数字孪生：sim 手按带时间记录的回放精确跟随指令角度，sim 方块按相机姿态放置，逐个采样比较 sim 与真实超声波，并记录回波来自哪个物体（8.9–8.17）。
+5. 用相机叠加图逐关节检查手的 real2sim，发现无名指/小指外展的符号和零点错误，且重新标定手会再次改变它们（8.8、8.16）。
+
+**关键数字**
+
+| 量 | 数值 |
+|---|---|
+| 内参 RMS 重投影 | top 0.675 px，side 0.587 px |
+| 相机位姿重复性（两次独立摆放） | 约 5 mm |
+| sim 与真实手（刚体部分） | 10–20 px ≈ 3–5 mm |
+| 超声波探头定位（相机） | 探头间距 26.4 mm（规格 26 mm） |
+| 超声波静态，位置 2–5 | MAE 3.3 mm，RMS 3.9 mm（样本内）；样本外 +3.9 mm |
+| "有无回波"一致率：最近距离模型 vs 25° 镜面模型 | 46% vs 88%（run01 + angle02） |
+| 三路时间（瞬间事件测试） | top +9 ms，side −27 ms（相对超声波）；超声波采样限制在 ±50 ms |
+| 方块静止检查（static01） | sim − 真实中位数 +0.7 mm，MAE 5.9 mm |
+| policy 回放完整孪生，run07 / run08 | 一致率 78% / 79%；孪生 − 真实中位数 +6.9 / +6.3 mm；MAE 9.9 / 7.3 mm |
+| 开环 policy 转动方块，run07 → run08（修正映射后） | 23° → 124° |
+
+**值得写进论文的发现（sim2real 经验）**
+
+- 标定 RMS 小不代表内参对：覆盖不全时 side 的 RMS 只有 0.46 px，但 fx 错了 57%（2.1）。
+- AprilTag 在 90–130 px 大小时，检测到的角点比打印的黑框往里缩约 2.8%；用等效尺寸 26.25 mm（而不是 27 mm）后，两相机的差距从 23.5 mm 降到 10 mm（8.5）。
+- 真实超声波回波取决于入射角：圆锥最近距离模型"有无回波"只对 36–51%，加入射角限制后 88–95%（8.6–8.7）；最佳阈值随距离增大，与 HC-SR04 收发分离一致（8.11）。
+- 传感器只是放在掌根上，会跟着手腕动（相关 0.86 / 0.88），所以超声波孪生只在手腕锁定时成立（8.12）。
+- 无名指、小指外展曾与 sim 方向相反、零点偏 20–27°；用户重新运行 orca_core 标定后又变回与 sim 同向、偏 10–14°。每次标定手之后都要重新检查关节映射（8.8、8.16）。
+- 在真实手上开环回放 sim 里的 policy 无法复现操作（方块被转动但总会掉）：policy 看不到真实方块，为安全放慢了 12 倍，关节范围也被截断（8.8、8.17）。
+
+**局限**
+
+- 相机位姿依赖卷尺测量棋盘相对前臂塔的位置（±1–2 mm、±1–2°），还没有独立的样本外检查。
+- 超声波模型是单基地圆锥 + 入射角阈值，下一步是收发分离模型。
+- 手指关节是否吻合靠看图判断（自动边缘分数分不出好坏）。
+- policy 回放是开环的。
 
 ---
 
@@ -618,10 +663,27 @@ T_world_cam = T_world_board · T_board_cam
 - 锁定手腕：超声波传感器只是放在掌根上，手腕一动它就跟着移动，超声波孪生就失效（8.12）。
 - 重新标定手之后，要重新做关节检查（8.16）：标定会改变关节的方向和零点。
 - 回放前把方块放在 sim 训练位置（x ≈ 0.17 m），否则手指碰不到方块（run05）。
+- real2sim 脚本在项目文件夹运行，回放在 orca 文件夹运行（下面每条命令都带 `cd`）。
+
+### 8.19 给队友的数据集
+
+`real2sim/dataset_package/`（以及 `real2sim/dataset_package.zip`，0.5 MB），由 `real2sim/recording/package.py` 生成：每次录制有 `dataset.csv`、`dataset_twin.csv`、`meta.json`、`twin_meta.json`、`replay_log.csv`（录制时间基）和回放轨迹；`calib/` 里是相机、rig 和标签文件；`README.md` 写明每一列、单位、坐标系以及哪些录制有效。相机图片不在包里（在 `real2sim/data/recordings/<run>/top|side/`，CSV 里有路径）。
+
+| 录制 | 用途 |
+|---|---|
+| angle01、angle02 | 入射角阈值（人手转动方块） |
+| static01 | 超声波静态检查 |
+| run01 | 第一次 policy 回放（旧映射） |
+| run03、run04、run06 | 手腕动过 → 超声波孪生无效；相机和方块数据可用 |
+| run05 | 手腕锁定，方块不在训练位置 |
+| **run07、run08** | 有效的完整孪生（run08 用当前映射） |
 
 ## 9. 复现步骤（命令）
 
+real2sim 脚本在项目文件夹运行；手的回放在 orca 文件夹、用它的环境运行。这里的程序都不向串口写数据，回放都由用户运行。
+
 ```bash
+cd "C:\Users\Owner\Desktop\ORCA project\SEP730-Dexterous-Hand-Simulation"
 # 0. 打印标定板（Letter，100%），贴到硬板上，量 100 mm 检查条和格子总长
 python real2sim/cameras/make_targets.py
 
@@ -642,4 +704,39 @@ python real2sim/cameras/correct_bump.py top real2sim/data/extr_top/top/008.png r
 # 3. 检查 & 生成本文的图
 python real2sim/cameras/show_scene.py --calibrated
 cd real2sim/cameras && python make_figures.py
+
+# ---- 超声波 ----
+cd "C:\Users\Owner\Desktop\ORCA project\SEP730-Dexterous-Hand-Simulation"
+python hardware/ultrasonic/read_ultrasonic.py --raw
+python real2sim/ultrasonic/twin_check.py locate --top-a U V --side-a U V --top-b U V   # 探头像素
+
+# ---- 方块标签 ----
+python real2sim/cube/cube_tags.py capture     # 在 top 相机下转动方块
+python real2sim/cube/cube_tags.py solve
+
+# ---- 关节检查（每次标定手之后） ----
+python real2sim/hand/pose_check.py make full            # -> orca/replay_sequences/pose_check_full.yaml
+python real2sim/recording/record.py fullcheck01 --seconds 290
+#   第二个终端（orca 文件夹）：
+#   cd C:\Users\Owner\Desktop\orca
+#   uv run python "C:\Users\Owner\Desktop\ORCA project\SEP730-Dexterous-Hand-Simulation\real2sim\recording\replay_logged.py" orca_core/models/v2/orcahand_right/config.yaml --replay-file pose_check_full.yaml --log fullcheck01
+python real2sim/hand/pose_check.py compare fullcheck01 full fullcheck01
+python real2sim/hand/finger_zoom.py fullcheck01 full fullcheck01
+
+# ---- policy 实验（方块在 x ≈ 0.17 m，绿色面朝小指，手腕锁定） ----
+python real2sim/recording/record.py start08 --seconds 3
+python real2sim/cube/snapshot_from_recording.py start08
+python real2sim/cube/check_pose.py real2sim/data/recordings/start08/snapshot
+python real2sim/policy/policy_to_replay.py --start-from real2sim/data/recordings/start08/snapshot --out policy_run08.yaml
+python real2sim/recording/record.py run08 --seconds 60
+#   倒计时结束后，第二个终端（orca 文件夹）：
+#   uv run python "...\real2sim\recording\replay_logged.py" orca_core/models/v2/orcahand_right/config.yaml --replay-file policy_run08.yaml --log run08
+
+# ---- 处理 ----
+python real2sim/recording/tower_check.py run08
+python real2sim/recording/process.py run08                       # dataset.csv
+python real2sim/recording/twin.py run08 policy_run08.yaml run08  # dataset_twin.csv
+python real2sim/recording/keyframes.py run08 policy_run08.yaml run08
+python real2sim/recording/sensor_track.py run08 policy_run08.yaml run08
+python real2sim/recording/package.py                             # dataset_package（+ .zip）
 ```
