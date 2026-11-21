@@ -13,6 +13,10 @@ on the real hand?
     python real2sim/hand/pose_check.py make abd          # -> pose_check_abd.yaml
     python real2sim/hand/pose_check.py compare abdcheck01 abd
 
+    # check the corrected mapping (joint_map.py): targets in sim degrees, commanded through it
+    python real2sim/hand/pose_check.py make abdfix
+    python real2sim/hand/pose_check.py compare abdcheck02 abdfix
+
 Poses (orca_core joint names, degrees; the wrist stays at its neutral value throughout):
   neutral      the config's neutral_position
   zero         every finger joint at 0 (the sim's start pose)
@@ -61,6 +65,16 @@ def poses(cfg: dict, pose_set: str = "basic") -> list[tuple[str, dict[str, float
         p.update(kw)
         return p
 
+    if pose_set == "abdfix":
+        # targets given in SIM degrees, commanded through the corrected mapping (joint_map.py):
+        # if the correction is right, the sim outline lands on the real finger in every pose
+        from joint_map import sim_to_core_deg
+        seq = [("neutral", neutral), ("zero", base())]
+        for j, targets in (("ring_abd", (-25.0, -10.0, 5.0)), ("pinky_abd", (-28.0, -15.0, 0.0))):
+            for s in targets:
+                seq.append((f"{j}_sim{s:+.0f}", base(**{j: round(sim_to_core_deg(j, s), 3)})))
+            seq.append((f"zero_after_{j}", base()))
+        return seq + [("neutral_end", neutral)]
     if pose_set == "abd":
         seq = [("neutral", neutral), ("zero", base())]
         for j in ABD_JOINTS:
@@ -148,6 +162,7 @@ def compare(name: str, pose_set: str = "basic") -> None:
     sys.path.insert(0, str(HERE.parent / "cameras"))
     sys.path.insert(0, str(ORCA))
     import camlib as C
+    from joint_map import set_sim_pose
     from sim_to_real import JointBridge
 
     rec = C.DATA_DIR / "recordings" / name
@@ -181,8 +196,11 @@ def compare(name: str, pose_set: str = "basic") -> None:
     for p in sched["poses"]:
         t_mid = off + (p["hold_start_s"] + p["hold_end_s"]) / 2
         mujoco.mj_resetData(m, d)
-        for j, deg in p["angles_deg"].items():
-            d.qpos[bridge.qadr_of_core[j]] = np.radians(-deg if j == "index_abd" else deg)
+        if pose_set == "abdfix":  # render through the corrected mapping being tested
+            set_sim_pose(bridge, d.qpos, p["angles_deg"])
+        else:
+            for j, deg in p["angles_deg"].items():
+                d.qpos[bridge.qadr_of_core[j]] = np.radians(-deg if j == "index_abd" else deg)
         d.qpos[cj:cj + 3] = [0.0, 0.0, -1.0]  # cube out of the way
         mujoco.mj_forward(m, d)
         tiles = []

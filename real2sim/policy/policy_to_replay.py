@@ -49,6 +49,9 @@ from orca_sim import OrcaHandRightCubeOrientation  # noqa: E402
 from orca_sim.wrappers import RelativeJointTargetAction  # noqa: E402
 from sim_to_real import JointBridge  # noqa: E402  (orca folder: sim <-> orca_core joint names/signs)
 
+sys.path.insert(0, str(HERE.parent / "hand"))
+from joint_map import read_core_degrees  # noqa: E402  (+ ring/pinky abd corrections measured on the bench)
+
 CONFIG = ORCA / "orca_core" / "models" / "v2" / "orcahand_right" / "config.yaml"
 MODEL = REPO / "models" / "ppo_reorient_relative"
 
@@ -107,6 +110,9 @@ def main() -> int:
                     help="seconds for each of the two release stages at the end: first the thumb goes back "
                          "to neutral (lets go of the cube), then the other fingers. run01 sent every finger "
                          "back in 2 s at once and the cube was flicked off the hand")
+    ap.add_argument("--wrist-range", type=float, nargs=2, metavar=("LO", "HI"),
+                    help="let the policy move the wrist, kept within [LO, HI] deg in the sim and in the file "
+                         "(default: wrist frozen at neutral)")
     ap.add_argument("--out", default="policy_run.yaml", help="file name in the orca replay_sequences folder")
     args = ap.parse_args()
 
@@ -137,13 +143,21 @@ def main() -> int:
                   f"(real cube centre was {np.round(pos, 4)})")
     obs, _ = env.reset(seed=args.seed, options=options)
     dt = base.model.opt.timestep * base.frame_skip
-    frames, success_at, dropped = [bridge.read_core_degrees(base.data)], None, False
+    frames, success_at, dropped = [read_core_degrees(bridge, base.data)], None, False
     for k in range(int(args.seconds / dt)):
         action, _ = model.predict(norm.normalize_obs(obs[None]), deterministic=True)
         action = np.asarray(action).reshape(-1).copy()
-        action[wrist_act] = 0.0  # wrist frozen
+        if args.wrist_range is None:
+            action[wrist_act] = 0.0  # wrist frozen
+        else:
+            # keep the wrist target (radians; the wrist is not remapped) inside the allowed range
+            lo, hi = np.radians(args.wrist_range)
+            env._target[wrist_act] = float(np.clip(env._target[wrist_act], lo, hi))
+            nxt = env._target[wrist_act] + action[wrist_act] * env.max_delta_frac * env._span[wrist_act]
+            if not lo <= nxt <= hi:
+                action[wrist_act] = 0.0
         obs, _, terminated, truncated, info = env.step(action)
-        frames.append(bridge.read_core_degrees(base.data))
+        frames.append(read_core_degrees(bridge, base.data))
         if success_at is None and info.get("goal_reached"):
             success_at = (k + 1) * dt
         if info.get("dropped"):
@@ -165,7 +179,11 @@ def main() -> int:
     ids = cfg["joint_ids"]
     neutral = np.array([cfg["neutral_position"].get(j, 0.0) for j in ids], float)
     w = ids.index("wrist")
-    traj[:, w] = neutral[w]
+    wrist_txt = "frozen" if args.wrist_range is None else f"within {args.wrist_range[0]:g}..{args.wrist_range[1]:g} deg"
+    if args.wrist_range is None:
+        traj[:, w] = neutral[w]
+    else:
+        traj[:, w] = np.clip(traj[:, w], *args.wrist_range)
     n_ramp = max(1, int(args.ramp * args.hz))
     blend = np.linspace(0, 1, n_ramp)[:, None]
     hold = np.repeat(traj[:1], int(args.hz), axis=0)  # 1 s still at the start pose
@@ -195,7 +213,7 @@ def main() -> int:
         "metadata": {
             "type": "continuous", "created_at": time.strftime("%Y%m%d_%H%M%S"),
             "sampling_frequency_hz": args.hz, "joint_ids": ids, "hand_type": cfg["type"],
-            "source": f"orca_sim PPO {MODEL.name} (wrist frozen, x{stretch:.1f} slower, "
+            "source": f"orca_sim PPO {MODEL.name} (wrist {wrist_txt}, x{stretch:.1f} slower, "
                       f"start {'real cube' if args.start_from else args.init})",
             "record_mode": "achieved",
         },
@@ -209,7 +227,8 @@ def main() -> int:
           f"(ramp {args.ramp:g} s + hold 1 s + motion {len(traj) / args.hz:.1f} s + hold 1 s + "
           f"thumb release {args.release:g} s + finger release {args.release:g} s)")
     print(f"fastest joint in the file: {ids[worst]} {peak[worst]:.0f} deg/s (limit {args.max_speed:g}); "
-          f"wrist fixed at {neutral[w]:g} deg; {clipped} samples clamped into joint_roms")
+          f"wrist {wrist_txt} (file: {full[:, w].min():.1f}..{full[:, w].max():.1f} deg); "
+          f"{clipped} samples clamped into joint_roms")
     print(f"wrote {out}\n\nreplay on the hand (orca folder, Ctrl+C to stop):\n"
           f"  cd C:\\Users\\Owner\\Desktop\\orca\n"
           f"  uv run python scripts/replay_continuous.py orca_core/models/v2/orcahand_right/config.yaml "
