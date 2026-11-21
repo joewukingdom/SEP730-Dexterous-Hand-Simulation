@@ -470,6 +470,18 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <tr><td>不限制（最近距离）</td><td class="num">36%</td><td class="num">51%</td><td class="num">46%</td></tr>
   </table></div>
   <p>采用 <b>25°</b>（<code>rig.yaml</code> 的 <code>ultrasonic.max_incidence_deg</code>），样本内选出，需新数据验证。重新生成后：run01 一致 91%，angle02 一致 88%；都测到时 angle02 sim − 真实中位数 −0.1 mm（MAE 7.3 mm），run01 为 +9.8 mm（靠近手腕处两相机融合偏差更明显）。</p>
+  <h3>policy 回放 run02 与关节姿态检查</h3>
+  <p>run02 结尾改为先松拇指、速度上限 40°/s，但手指张得过开、方块掉了。原因：sim 的 policy 从"全部关节 0°"（伸直）开始，还会把手指往反方向掰（ring_mcp −24.7°、middle_mcp −17°、pip −14.6°）；thumb_mcp 有 74% 时间被截断在真实上限 40°；放慢 13 倍后动态接触失效。<b>即使关节标定准确，开环回放 sim policy 也难以复现操作。</b></p>
+  <p>关节姿态检查（<code>real2sim/hand/pose_check.py</code>）：回放 6 个已知姿态并录制，自动找到回放开始时刻，把 sim 手按相同关节角渲染叠到画面上。</p>
+  <figure>
+    <img src="figures/real2sim/posecheck02_pose_check.jpg" alt="关节姿态检查" tabindex="0" loading="lazy">
+    <figcaption><b>图 M · 关节姿态检查</b>。洋红 = sim 手在相同关节角下的轮廓。</figcaption>
+  </figure>
+  <ul>
+    <li><b>top</b>：所有姿态下 sim 手都比真实手往拇指侧偏并转了一个角度（真实手指整体向小指方向偏约 10–15°），手腕附近对齐；改 sim 手腕角度几乎不影响（手腕关节是上下弯）。</li>
+    <li><b>side</b>："全 0°"姿态下 sim 手腕取 0° 最吻合（8.0 px），取指令值 −9.6° 更差（9.3 px）：手腕约 5–10° 偏差。</li>
+    <li>四指上下弯曲大致对得上；拇指偏差较大。真实关节标定（orca_core <code>calibration.yaml</code>）最后更新于 2026-09-08；<code>orca_teleop-main</code> 里的是遥操作双目相机标定和重定向参数，不是关节标定。</li>
+  </ul>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 
