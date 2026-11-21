@@ -8,6 +8,11 @@ on the real hand?
     # 3. compare: sim hand rendered at exactly those angles over the real frames
     python real2sim/hand/pose_check.py compare posecheck01
 
+    # abduction check: index / ring / pinky abd at -20, 0, +20 deg one at a time, then a fit of
+    # the per-finger correction that best matches the top view
+    python real2sim/hand/pose_check.py make abd          # -> pose_check_abd.yaml
+    python real2sim/hand/pose_check.py compare abdcheck01 abd
+
 Poses (orca_core joint names, degrees; the wrist stays at its neutral value throughout):
   neutral      the config's neutral_position
   zero         every finger joint at 0 (the sim's start pose)
@@ -31,12 +36,21 @@ import yaml
 HERE = Path(__file__).resolve().parent
 ORCA = Path(r"C:\Users\Owner\Desktop\orca")
 CONFIG = ORCA / "orca_core" / "models" / "v2" / "orcahand_right" / "config.yaml"
-OUT_NAME = "pose_check.yaml"
-SCHEDULE = HERE / "pose_check_schedule.json"
 HZ, HOLD_S, RAMP_S = 30.0, 4.0, 2.5
+# pose sets: "basic" (above) and "abd": index / ring / pinky abduction at -20, 0, +20 deg one
+# finger at a time, everything else at 0 (index is the reference: it looked aligned)
+ABD_JOINTS, ABD_VALUES = ("index_abd", "ring_abd", "pinky_abd"), (-20.0, 20.0)
 
 
-def poses(cfg: dict) -> list[tuple[str, dict[str, float]]]:
+def out_name(pose_set: str) -> str:
+    return "pose_check.yaml" if pose_set == "basic" else f"pose_check_{pose_set}.yaml"
+
+
+def schedule_path(pose_set: str) -> Path:
+    return HERE / ("pose_check_schedule.json" if pose_set == "basic" else f"pose_check_{pose_set}_schedule.json")
+
+
+def poses(cfg: dict, pose_set: str = "basic") -> list[tuple[str, dict[str, float]]]:
     ids = cfg["joint_ids"]
     neutral = {j: float(cfg["neutral_position"].get(j, 0.0)) for j in ids}
     wrist = neutral["wrist"]
@@ -47,6 +61,13 @@ def poses(cfg: dict) -> list[tuple[str, dict[str, float]]]:
         p.update(kw)
         return p
 
+    if pose_set == "abd":
+        seq = [("neutral", neutral), ("zero", base())]
+        for j in ABD_JOINTS:
+            for v in ABD_VALUES:
+                seq.append((f"{j}_{v:+.0f}", base(**{j: v})))
+            seq.append((f"zero_after_{j}", base()))
+        return seq + [("neutral_end", neutral)]
     f45 = {f"{f}_{k}": 45.0 for f in ("index", "middle", "ring", "pinky") for k in ("mcp", "pip")}
     return [
         ("neutral", neutral),
@@ -58,10 +79,11 @@ def poses(cfg: dict) -> list[tuple[str, dict[str, float]]]:
     ]
 
 
-def make() -> None:
+def make(pose_set: str = "basic") -> None:
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     ids, roms = cfg["joint_ids"], cfg["joint_roms"]
-    seq = poses(cfg)
+    seq = poses(cfg, pose_set)
+    OUT_NAME, SCHEDULE = out_name(pose_set), schedule_path(pose_set)
     vecs = []
     for name, p in seq:
         v = np.array([p[j] for j in ids], float)
@@ -117,7 +139,7 @@ def find_offset(t: np.ndarray, motion: np.ndarray, sched: dict) -> tuple[float, 
     return best[1], best[0]
 
 
-def compare(name: str) -> None:
+def compare(name: str, pose_set: str = "basic") -> None:
     import csv
 
     import cv2
@@ -129,7 +151,7 @@ def compare(name: str) -> None:
     from sim_to_real import JointBridge
 
     rec = C.DATA_DIR / "recordings" / name
-    sched = json.loads(SCHEDULE.read_text())
+    sched = json.loads(schedule_path(pose_set).read_text())
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     frames = {c: [(float(r["t"]), r["file"]) for r in csv.DictReader(open(rec / f"{c}_frames.csv", newline=""))]
               for c in ("top", "side")}
@@ -207,13 +229,77 @@ def compare(name: str) -> None:
         print(f"  {pose_name:12s} {cam:5s} {sc:5.1f}")
     (rec / "pose_check_scores.json").write_text(json.dumps(
         {"replay_offset_s": off, "scores_px": [{"pose": a, "cam": b, "px": c} for a, b, c in report]}, indent=2))
+    if pose_set != "abd":
+        return
+
+    # --- abduction offsets: for each finger, in its own +-20 poses and in the zero poses, find
+    # the correction (deg, added to the commanded angle) that best fits that finger's outline in
+    # the top view. Same correction at -20 / 0 / +20 -> zero offset; correction ~ -2x command ->
+    # the joint's direction is reversed between sim and real.
+    def finger_geoms(joint: str) -> set[int]:
+        qadr = bridge.qadr_of_core[joint]
+        jid = int(np.where(m.jnt_qposadr == qadr)[0][0])
+        root = int(m.jnt_bodyid[jid])
+        bodies = set()
+        for b in range(m.nbody):
+            p = b
+            while p > 0:
+                if p == root:
+                    bodies.add(b)
+                    break
+                p = int(m.body_parentid[p])
+        return {g for g in range(m.ngeom) if m.geom_bodyid[g] in bodies}
+
+    intr = C.Intrinsics.load(C.intrinsics_path("top"))
+    deltas = np.arange(-30, 31, 2.0)
+    fit = {}
+    print("\nabduction fit (top view, that finger's outline only): best correction to the commanded angle")
+    for joint in ABD_JOINTS:
+        geoms = finger_geoms(joint)
+        for p in sched["poses"]:
+            cmd = p["angles_deg"][joint]
+            others_zero = all(abs(v) < 1e-6 for k, v in p["angles_deg"].items() if k not in ("wrist", joint))
+            if not others_zero:
+                continue
+            t_mid = off + (p["hold_start_s"] + p["hold_end_s"]) / 2
+            _, f = min(frames["top"], key=lambda x: abs(x[0] - t_mid))
+            und = cv2.undistort(cv2.imread(str(rec / f)), intr.K_np, intr.dist_np)
+            edges = cv2.Canny(cv2.GaussianBlur(cv2.cvtColor(und, cv2.COLOR_BGR2GRAY), (5, 5), 0), 40, 120)
+            dist = cv2.distanceTransform(255 - edges, cv2.DIST_L2, 5)
+            scores = []
+            for dl in deltas:
+                mujoco.mj_resetData(m, d)
+                for j, deg in p["angles_deg"].items():
+                    v = deg + (dl if j == joint else 0.0)
+                    d.qpos[bridge.qadr_of_core[j]] = np.radians(-v if j == "index_abd" else v)
+                d.qpos[cj:cj + 3] = [0.0, 0.0, -1.0]
+                mujoco.mj_forward(m, d)
+                r.enable_segmentation_rendering()
+                r.update_scene(d, camera="top", scene_option=opt)
+                seg = r.render()[..., 0]
+                r.disable_segmentation_rendering()
+                mask = np.isin(seg, list(geoms)).astype(np.uint8)
+                ext, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                if not ext:
+                    scores.append(np.inf)
+                    continue
+                pts = np.vstack([c.reshape(-1, 2) for c in ext])
+                scores.append(float(np.median(dist[pts[:, 1], pts[:, 0]])))
+            k = int(np.argmin(scores))
+            fit.setdefault(joint, []).append({"pose": p["pose"], "commanded": cmd, "best_correction": float(deltas[k]),
+                                              "score_px": scores[k], "score_at_0_px": scores[len(deltas) // 2]})
+            print(f"  {joint:10s} {p['pose']:22s} commanded {cmd:+5.0f}: best correction {deltas[k]:+5.0f} deg "
+                  f"({scores[len(deltas) // 2]:.1f} -> {scores[k]:.1f} px)")
+    (rec / "abd_fit.json").write_text(json.dumps(fit, indent=2))
+    print(f"wrote {rec / 'abd_fit.json'}")
 
 
 def main() -> None:
+    pose_set = sys.argv[3] if len(sys.argv) >= 4 else "basic"
     if len(sys.argv) >= 2 and sys.argv[1] == "make":
-        make()
+        make(sys.argv[2] if len(sys.argv) >= 3 else "basic")
     elif len(sys.argv) >= 3 and sys.argv[1] == "compare":
-        compare(sys.argv[2])
+        compare(sys.argv[2], pose_set)
     else:
         raise SystemExit(__doc__)
 
