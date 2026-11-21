@@ -522,6 +522,15 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li>偏移量在 abdcheck01 上估计，在独立录制 abdcheck03 上成立。</li>
     <li>限制：sim 小指外展 0° 对应真实约 −27°，接近真实极限 −30°，真实小指往里收的余量比 sim 小。</li>
   </ul>
+  <h3>run03：手腕 −10°~+10° 与完整数字孪生的对齐</h3>
+  <ul>
+    <li>修正映射 + 手腕 −10°~+10°。sim 里允许手腕后 policy 0.75 秒完成（锁手腕时 2 秒内未完成）。</li>
+    <li>过程：开始时方块在盲区（20–29 mm）；约 4 秒手指张开、手腕转动；6.5 秒拇指推方块；7.8 秒方块滑落；14.3 秒用户放回方块。录制 22 秒。</li>
+    <li><b>前臂塔没有被带动</b>（<code>tower_check.py</code>）：首尾帧塔区域位移中位数 0.00 px，相机外参和超声波位置仍有效。</li>
+    <li>只看方块的 sim 一致率仅 45%：手指在传感器前晃动，真实传感器常测到手指。</li>
+  </ul>
+  <p><b>完整数字孪生</b>（<code>twin.py</code>）：sim 手按回放指令运动、方块按相机姿态放置，超声波同时计算手和方块。但回放在录制中的开始时刻无法可靠确定：画面变化与指令速度相关系数仅 0.22；"静止后首次运动"被拇指推方块触发；姿态匹配对任何早于录制的开始时刻得分都约 6.0 px，没有唯一最优。<b>run03 的完整孪生对比不采用。</b></p>
+  <p><b>解决</b>：<code>replay_logged.py</code> 与 <code>replay_continuous.py</code> 控制方式相同（由用户运行、Ctrl+C 停止），另外记录每帧发出时的 <code>perf_counter</code>（Windows 上与录制程序同一个系统时钟）；<code>record.py</code> 把时钟原点写进 <code>meta.json</code>，<code>twin.py</code> 据此精确对齐。</p>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 

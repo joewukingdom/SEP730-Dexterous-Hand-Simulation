@@ -265,6 +265,7 @@ def main() -> None:
         w.writerows((i, f"{t:.6f}", d, raw) for i, t, d, raw in us.rows)
     meta = {"started_utc": started, "clock": "time.perf_counter, s since process start; t = arrival on host",
             "recording_start_t": t_start, "stopped_t": t_stop, "port": port,
+            "perf_counter_origin": T0,  # t = time.perf_counter() - this (system-wide clock on Windows)
             "cameras": {c.name_: {**rig["cameras"][c.name_], "frames": len(c.rows), "dropped": c.dropped}
                         for c in cams},
             "ultrasonic_samples": len(us.rows), "ultrasonic_backlog_discarded": us.discarded, "note": args.note}
