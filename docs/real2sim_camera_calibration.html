@@ -546,6 +546,20 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <li>方块掉落后孪生一直读到 22–29 mm，真实是 42–94 mm；"150 mm 内是否有东西"一致率 62%。</li>
     <li>56 次采样里 49 次射线打到 <b><code>R-T-AP</code>（拇指根部）</b>：sim 拇指根部摆进了 15° 圆锥，真实的没有。拇指是偏差最大的部位（thumb_mcp 74% 时间被截断在 40°，拇指关节尚未逐个检查）。</li>
   </ul>
+  <h3>run05：绿色面朝小指、手腕锁定（方块第一次没有掉）</h3>
+  <p>回放完整执行（961 帧）并精确对齐，<b>方块全程留在手掌上</b>。相机和塔没有动（top 背景转动 0.009°；塔后段位移 0.00 px；之前报的 19 px 是塔前端区域里移动的方块和拇指造成的误报）。</p>
+  <figure>
+    <img src="figures/real2sim/run05_twin_timeline.png" alt="run05 时间线" tabindex="0" loading="lazy">
+    <figcaption><b>图 T · run05 时间线</b>。</figcaption>
+  </figure>
+  <div class="tbl"><table>
+    <tr><th>阶段</th><th>真实</th><th>sim 孪生</th><th>正对面入射角</th><th>方块 x</th></tr>
+    <tr><td>0–2 s（回放前）</td><td class="num">29.0 mm</td><td class="num">28.6 mm</td><td class="num">20.1°</td><td class="num">149.6 mm</td></tr>
+    <tr><td>3–9 s</td><td class="num">49.0 mm</td><td class="num">34.0 mm</td><td class="num">17.9°</td><td class="num">154.7 mm</td></tr>
+    <tr><td>10–30 s</td><td class="num">49.0 mm</td><td class="num">27.8 mm</td><td class="num">15.6°</td><td class="num">149.2 mm</td></tr>
+    <tr><td>33–50 s（回放后）</td><td class="num">49.0 mm</td><td class="num">33.9 mm</td><td class="num">17.9°</td><td class="num">154.6 mm</td></tr>
+  </table></div>
+  <p>方块只移动约 5 mm、入射角 16–20°，但真实读数从 29 跳到 49 mm 并保持：真实传感器不再收到方块正面的回波，孪生（25° 阈值）仍判为方块。<b>可能原因：HC-SR04 收发分离</b>（两探头相距 26 mm），近距离时稍有倾斜的面会把反射打偏接收探头，容许角随距离增大，与阈值的距离依赖一致（约 4 cm 时 15–20°，约 7 cm 时 25–30°）。下一步：sim 里做收发分离的反射模型。</p>
   <p>采集时注意：相机和串口同时只能被一个程序打开；不要大幅移动手腕，手和前臂塔上的传感器会一起移动，相机外参和传感器位置都会失效。</p>
 </section>
 

@@ -19,7 +19,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cameras"))
 import camlib as C  # noqa: E402
 
-TOWER = np.array([[x, y, z] for x in (-0.058, 0.099) for y in (-0.057, 0.037) for z in (0.112, 0.208)])
+# the rear part of the tower only (x up to 0.04): the front end around x = 0.1 is where the
+# palm, the thumb and the cube move, and their features made run05 look like a 19 px shift
+TOWER = np.array([[x, y, z] for x in (-0.058, 0.04) for y in (-0.057, 0.037) for z in (0.112, 0.208)])
 
 
 def roi(cam: str, cal: dict, margin: int = 20):
