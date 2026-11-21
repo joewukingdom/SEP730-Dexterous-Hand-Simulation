@@ -17,6 +17,10 @@ on the real hand?
     python real2sim/hand/pose_check.py make abdfix
     python real2sim/hand/pose_check.py compare abdcheck02 abdfix
 
+    # thumb joints one at a time; replayed with replay_logged.py so the start is exact
+    python real2sim/hand/pose_check.py make thumb
+    python real2sim/hand/pose_check.py compare thumbcheck01 thumb thumbcheck01   # last arg: replay log
+
 Poses (orca_core joint names, degrees; the wrist stays at its neutral value throughout):
   neutral      the config's neutral_position
   zero         every finger joint at 0 (the sim's start pose)
@@ -44,6 +48,9 @@ HZ, HOLD_S, RAMP_S = 30.0, 4.0, 2.5
 # pose sets: "basic" (above) and "abd": index / ring / pinky abduction at -20, 0, +20 deg one
 # finger at a time, everything else at 0 (index is the reference: it looked aligned)
 ABD_JOINTS, ABD_VALUES = ("index_abd", "ring_abd", "pinky_abd"), (-20.0, 20.0)
+# pose set "thumb": each thumb joint alone at two angles inside the real ROM
+THUMB_TESTS = {"thumb_cmc": (-30.0, 25.0), "thumb_abd": (-10.0, 30.0), "thumb_mcp": (0.0, 35.0),
+               "thumb_dip": (0.0, 70.0)}
 
 
 def out_name(pose_set: str) -> str:
@@ -65,6 +72,14 @@ def poses(cfg: dict, pose_set: str = "basic") -> list[tuple[str, dict[str, float
         p.update(kw)
         return p
 
+    if pose_set == "thumb":
+        # each thumb joint on its own at two angles (within the real ROM), all else at 0
+        seq = [("neutral", neutral), ("zero", base())]
+        for j, vals in THUMB_TESTS.items():
+            for v in vals:
+                seq.append((f"{j}_{v:+.0f}", base(**{j: v})))
+            seq.append((f"zero_after_{j}", base()))
+        return seq + [("neutral_end", neutral)]
     if pose_set == "abdfix":
         # targets given in SIM degrees, commanded through the corrected mapping (joint_map.py):
         # if the correction is right, the sim outline lands on the real finger in every pose
@@ -153,7 +168,7 @@ def find_offset(t: np.ndarray, motion: np.ndarray, sched: dict) -> tuple[float, 
     return best[1], best[0]
 
 
-def compare(name: str, pose_set: str = "basic") -> None:
+def compare(name: str, pose_set: str = "basic", log_name: str | None = None) -> None:
     import csv
 
     import cv2
@@ -178,8 +193,14 @@ def compare(name: str, pose_set: str = "basic") -> None:
         motion.append(0.0 if prev is None else float(np.abs(g - prev).mean()))
         prev = g
     motion = np.array(motion)
-    off, score = find_offset(t_top, motion, sched)
-    print(f"replay starts at t={off:.2f} s in the recording (stillness contrast {score:.2f})")
+    if log_name:  # replay_logged.py time log: exact start
+        meta = json.loads((rec / "meta.json").read_text())
+        first = next(csv.DictReader(open(C.DATA_DIR / "replay_logs" / f"{log_name}.csv", newline="")))
+        off = float(first["perf_counter"]) - meta["perf_counter_origin"]
+        print(f"replay starts at t={off:.2f} s in the recording (from the replay log {log_name})")
+    else:
+        off, score = find_offset(t_top, motion, sched)
+        print(f"replay starts at t={off:.2f} s in the recording (stillness contrast {score:.2f})")
 
     rig = C.load_rig(C.HERE / "rig.yaml")
     m = mujoco.MjModel.from_xml_path(str((C.SCENES_DIR / rig["scene"].replace(".xml", "_real2sim.xml")).resolve()))
@@ -317,7 +338,7 @@ def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == "make":
         make(sys.argv[2] if len(sys.argv) >= 3 else "basic")
     elif len(sys.argv) >= 3 and sys.argv[1] == "compare":
-        compare(sys.argv[2], pose_set)
+        compare(sys.argv[2], pose_set, sys.argv[4] if len(sys.argv) >= 5 else None)
     else:
         raise SystemExit(__doc__)
 
